@@ -21,7 +21,7 @@ function formatDollar(value: number): string {
 }
 
 function formatDollarFull(value: number): string {
-  return `$${value.toLocaleString()}`;
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function PolicyOverview() {
@@ -32,7 +32,7 @@ export default function PolicyOverview() {
     // Baseline: 34% phase-in, 15.98% phase-out, max ~$4,427
     // Reform: 76.24% phase-in (34% + 42.24%), 20.98% phase-out (15.98% + 5%), max ~$9,927
 
-    for (let income = 0; income <= 60000; income += 500) {
+    for (let income = 0; income <= 80000; income += 500) {
       // Baseline EITC (1 child)
       const baselinePhaseIn = 0.34;
       const baselineMax = 4427;
@@ -83,7 +83,7 @@ export default function PolicyOverview() {
           The Working Parents Tax Relief Act of 2026, introduced by Rep. McDonald Rivet,
           enhances the Earned Income Tax Credit (EITC) for parents of young children
           (under age 4). The bill increases credit percentages and phaseout percentages
-          to provide additional support during the early childhood years.
+          , providing qualifying households with a greater benefit amount.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -116,27 +116,6 @@ export default function PolicyOverview() {
             </p>
           </div>
         </div>
-        <p className="text-xs text-gray-500">
-          This reform is implemented in{' '}
-          <a
-            href="https://github.com/PolicyEngine/policyengine-us/pull/7914"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary-600 hover:underline"
-          >
-            policyengine-us PR #7914
-          </a>
-          . See{' '}
-          <a
-            href="https://www.law.cornell.edu/uscode/text/26/32"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary-600 hover:underline"
-          >
-            IRC Section 32
-          </a>{' '}
-          for the current EITC law.
-        </p>
       </div>
 
       {/* EITC comparison chart */}
@@ -155,7 +134,8 @@ export default function PolicyOverview() {
                 dataKey="income"
                 tickFormatter={formatDollar}
                 tick={{ fontSize: 12 }}
-                domain={[0, 60000]}
+                domain={[0, 80000]}
+                ticks={[0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]}
               />
               <YAxis tickFormatter={formatDollar} tick={{ fontSize: 12 }} />
               <Tooltip
@@ -202,7 +182,7 @@ export default function PolicyOverview() {
       {/* EITC parameters table */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-3">
-          EITC parameter changes for parents of young children
+          EITC parameter changes for parents of young children (2026)
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
