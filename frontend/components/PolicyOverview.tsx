@@ -27,17 +27,38 @@ function formatDollarFull(value: number): string {
 // Chart visualization data for different young children scenarios
 // These are illustrative approximations for the policy overview chart
 const CHART_SCENARIOS = {
-  1: { label: '1 young child', data: generateChartData(0.34, 4427, 21430, 0.1598, 0.4224, 0.05) },
-  2: { label: '2 young children', data: generateChartData(0.40, 7316, 22720, 0.2106, 0.6014, 0.10) },
-  3: { label: '3 young children', data: generateChartData(0.45, 8231, 22720, 0.2106, 0.9021, 0.15) },
+  1: {
+    label: '1 young child',
+    data: generateChartData(0.34, 4427, 21430, 0.1598, 0.4224, 0.05, 70000),
+    xMax: 70000,
+    xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000],
+    yMax: 10000,
+    yTicks: [0, 5000, 10000],
+  },
+  2: {
+    label: '2 young children',
+    data: generateChartData(0.40, 7316, 22720, 0.2106, 0.6014, 0.10, 90000),
+    xMax: 90000,
+    xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000],
+    yMax: 20000,
+    yTicks: [0, 5000, 10000, 15000, 20000],
+  },
+  3: {
+    label: '3 young children',
+    data: generateChartData(0.45, 8231, 22720, 0.2106, 0.9021, 0.15, 100000),
+    xMax: 100000,
+    xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000],
+    yMax: 25000,
+    yTicks: [0, 5000, 10000, 15000, 20000, 25000],
+  },
 };
 
 function generateChartData(
   basePhaseIn: number, baseMax: number, phaseOutStart: number, basePhaseOut: number,
-  reformBoost: number, phaseOutBoost: number
+  reformBoost: number, phaseOutBoost: number, xMax: number
 ) {
   const points = [];
-  for (let income = 0; income <= 100000; income += 500) {
+  for (let income = 0; income <= xMax; income += 500) {
     // Baseline curve
     let baseline;
     if (income <= baseMax / basePhaseIn) {
@@ -150,10 +171,15 @@ export default function PolicyOverview() {
                 dataKey="income"
                 tickFormatter={formatDollar}
                 tick={{ fontSize: 12 }}
-                domain={[0, 100000]}
-                ticks={[0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000]}
+                domain={[0, scenario.xMax]}
+                ticks={scenario.xTicks}
               />
-              <YAxis tickFormatter={formatDollar} tick={{ fontSize: 12 }} />
+              <YAxis
+                tickFormatter={formatDollar}
+                tick={{ fontSize: 12 }}
+                domain={[0, scenario.yMax]}
+                ticks={scenario.yTicks}
+              />
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
