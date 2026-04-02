@@ -24,53 +24,53 @@ function formatDollarFull(value: number): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function PolicyOverview() {
-  // EITC comparison data for single parent with one child under 4
-  const eitcComparisonData = useMemo(() => {
-    const points = [];
-    // Simplified EITC calculation for demonstration
-    // Baseline: 34% phase-in, 15.98% phase-out, max ~$4,427
-    // Reform: 76.24% phase-in (34% + 42.24%), 20.98% phase-out (15.98% + 5%), max ~$9,927
+// Chart visualization data for different young children scenarios
+// These are illustrative approximations for the policy overview chart
+const CHART_SCENARIOS = {
+  1: { label: '1 young child', data: generateChartData(0.34, 4427, 21430, 0.1598, 0.4224, 0.05) },
+  2: { label: '2 young children', data: generateChartData(0.40, 7316, 22720, 0.2106, 0.6014, 0.10) },
+  3: { label: '3 young children', data: generateChartData(0.45, 8231, 22720, 0.2106, 0.9021, 0.15) },
+};
 
-    for (let income = 0; income <= 80000; income += 500) {
-      // Baseline EITC (1 child)
-      const baselinePhaseIn = 0.34;
-      const baselineMax = 4427;
-      const baselinePhaseOutStart = 21430;
-      const baselinePhaseOut = 0.1598;
-
-      let baselineEitc;
-      if (income <= baselineMax / baselinePhaseIn) {
-        baselineEitc = Math.min(income * baselinePhaseIn, baselineMax);
-      } else if (income <= baselinePhaseOutStart) {
-        baselineEitc = baselineMax;
-      } else {
-        baselineEitc = Math.max(0, baselineMax - (income - baselinePhaseOutStart) * baselinePhaseOut);
-      }
-
-      // Reform EITC (1 child under 4)
-      const reformPhaseIn = 0.7624; // 34% + 42.24%
-      const reformMax = 9927; // approximately 2.24x
-      const reformPhaseOutStart = 21430;
-      const reformPhaseOut = 0.2098; // 15.98% + 5%
-
-      let reformEitc;
-      if (income <= reformMax / reformPhaseIn) {
-        reformEitc = Math.min(income * reformPhaseIn, reformMax);
-      } else if (income <= reformPhaseOutStart) {
-        reformEitc = reformMax;
-      } else {
-        reformEitc = Math.max(0, reformMax - (income - reformPhaseOutStart) * reformPhaseOut);
-      }
-
-      points.push({
-        income,
-        baseline: baselineEitc,
-        reform: reformEitc,
-      });
+function generateChartData(
+  basePhaseIn: number, baseMax: number, phaseOutStart: number, basePhaseOut: number,
+  reformBoost: number, phaseOutBoost: number
+) {
+  const points = [];
+  for (let income = 0; income <= 100000; income += 500) {
+    // Baseline curve
+    let baseline;
+    if (income <= baseMax / basePhaseIn) {
+      baseline = Math.min(income * basePhaseIn, baseMax);
+    } else if (income <= phaseOutStart) {
+      baseline = baseMax;
+    } else {
+      baseline = Math.max(0, baseMax - (income - phaseOutStart) * basePhaseOut);
     }
-    return points;
-  }, []);
+
+    // Reform curve
+    const refPhaseIn = basePhaseIn + reformBoost;
+    const refMax = baseMax + (reformBoost * (baseMax / basePhaseIn));
+    const refPhaseOut = basePhaseOut + phaseOutBoost;
+
+    let reform;
+    if (income <= refMax / refPhaseIn) {
+      reform = Math.min(income * refPhaseIn, refMax);
+    } else if (income <= phaseOutStart) {
+      reform = refMax;
+    } else {
+      reform = Math.max(0, refMax - (income - phaseOutStart) * refPhaseOut);
+    }
+
+    points.push({ income, baseline, reform });
+  }
+  return points;
+}
+
+export default function PolicyOverview() {
+  const [youngChildren, setYoungChildren] = useState<1 | 2 | 3>(1);
+  const scenario = CHART_SCENARIOS[youngChildren];
+  const eitcComparisonData = scenario.data;
 
   return (
     <div className="space-y-10">
@@ -121,11 +121,27 @@ export default function PolicyOverview() {
       {/* EITC comparison chart */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-3">
-          EITC by income: single parent with one child under 4 (2026)
+          EITC by income (2026)
         </h3>
         <p className="text-sm text-gray-600 mb-4">
           Comparison of baseline vs. reform EITC by employment income
         </p>
+        {/* Scenario tabs */}
+        <div className="flex space-x-2 mb-4">
+          {([1, 2, 3] as const).map((num) => (
+            <button
+              key={num}
+              onClick={() => setYoungChildren(num)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                youngChildren === num
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {CHART_SCENARIOS[num].label}
+            </button>
+          ))}
+        </div>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={eitcComparisonData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
@@ -134,8 +150,8 @@ export default function PolicyOverview() {
                 dataKey="income"
                 tickFormatter={formatDollar}
                 tick={{ fontSize: 12 }}
-                domain={[0, 80000]}
-                ticks={[0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]}
+                domain={[0, 100000]}
+                ticks={[0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000]}
               />
               <YAxis tickFormatter={formatDollar} tick={{ fontSize: 12 }} />
               <Tooltip

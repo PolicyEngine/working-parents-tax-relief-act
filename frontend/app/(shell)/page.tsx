@@ -5,13 +5,7 @@ import ImpactAnalysis from '@/components/ImpactAnalysis';
 import AggregateImpact from '@/components/AggregateImpact';
 import PolicyOverview from '@/components/PolicyOverview';
 import type { HouseholdRequest } from '@/lib/types';
-import {
-  parseHashParams,
-  updateHash,
-  notifyReady,
-  isEmbedded,
-  type HashParams,
-} from '@/lib/embedding';
+import { parseHashParams } from '@/lib/embedding';
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -42,36 +36,10 @@ export default function Home() {
     { id: 'aggregate' as const, label: 'National impact' },
   ];
 
-  // Handle tab change and sync with URL hash
+  // Simple tab change handler
   const handleTabChange = useCallback((tab: 'policy' | 'impact' | 'aggregate') => {
     setActiveTab(tab);
-    // Update hash to reflect current tab
-    const currentParams = parseHashParams(window.location.hash);
-    updateHash({ ...currentParams, tab });
   }, []);
-
-  // Initialize from hash and listen for hash changes
-  useEffect(() => {
-    // Parse initial hash parameters
-    const initialParams = parseHashParams(window.location.hash);
-    if (initialParams.tab) {
-      setActiveTab(initialParams.tab);
-    }
-
-    // Notify parent that dashboard is ready
-    notifyReady();
-
-    // Listen for hashchange events (e.g., when parent updates the URL)
-    const handleHashChange = () => {
-      const params = parseHashParams(window.location.hash);
-      if (params.tab && params.tab !== activeTab) {
-        setActiveTab(params.tab);
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeTab]);
 
   return (
     <main className="min-h-screen bg-gray-50">
