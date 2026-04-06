@@ -26,18 +26,20 @@ function formatDollarFull(value: number): string {
 
 // Chart visualization data for different young children scenarios
 // These are illustrative approximations for the policy overview chart
+// 2026 EITC baseline parameters per IRS Rev. Proc. 2025-32
+// Phase-out start for 1+ children: $23,890
 const CHART_SCENARIOS = {
   1: {
     label: '1 young child',
-    data: generateChartData(0.34, 4427, 21430, 0.1598, 0.4224, 0.05, 70000),
-    xMax: 70000,
-    xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000],
+    data: generateChartData(0.34, 4427, 23890, 0.1598, 0.4224, 0.05, 80000),
+    xMax: 80000,
+    xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000],
     yMax: 10000,
     yTicks: [0, 5000, 10000],
   },
   2: {
     label: '2 young children',
-    data: generateChartData(0.40, 7316, 22720, 0.2106, 0.6014, 0.10, 90000),
+    data: generateChartData(0.40, 7316, 23890, 0.2106, 0.6014, 0.10, 90000),
     xMax: 90000,
     xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000],
     yMax: 20000,
@@ -45,7 +47,7 @@ const CHART_SCENARIOS = {
   },
   3: {
     label: '3 young children',
-    data: generateChartData(0.45, 8231, 22720, 0.2106, 0.9021, 0.15, 100000),
+    data: generateChartData(0.45, 8231, 23890, 0.2106, 0.9021, 0.15, 100000),
     xMax: 100000,
     xTicks: [0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000],
     yMax: 25000,
@@ -252,8 +254,8 @@ export default function PolicyOverview() {
               <tr className="border-b border-gray-100">
                 <td className="py-3 px-4 text-gray-700">3+ children with 3 young</td>
                 <td className="py-3 px-4 text-right text-gray-700">$8,231</td>
-                <td className="py-3 px-4 text-right text-gray-700">$24,736</td>
-                <td className="py-3 px-4 text-right font-semibold text-primary-600">3.01x</td>
+                <td className="py-3 px-4 text-right text-gray-700">$24,731</td>
+                <td className="py-3 px-4 text-right font-semibold text-primary-600">3.00x</td>
               </tr>
             </tbody>
           </table>
