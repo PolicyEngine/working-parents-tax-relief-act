@@ -1,0 +1,408 @@
+"""Modal-based data generation pipeline for Working Parents Tax Relief Act.
+
+Runs microsimulation for each year (2026-2035) in parallel on Modal's
+cloud infrastructure, avoiding local memory issues.
+
+Usage:
+    # Run the pipeline (computes all years in parallel on Modal)
+    modal run scripts/modal_pipeline.py
+
+    # Deploy as a scheduled job (optional)
+    modal deploy scripts/modal_pipeline.py
+"""
+
+import json
+import os
+
+import modal
+
+# Modal app definition
+app = modal.App("wptra-pipeline")
+
+# Image with policyengine-us and dependencies
+# Using a large memory container for microsimulation
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install(
+        "policyengine-us>=1.150.0",
+        "numpy>=1.24.0",
+        "pandas>=2.0.0",
+    )
+)
+
+YEARS = list(range(2026, 2036))
+
+# Reform dictionary to enable WPTRA
+REFORM_DICT = {
+    "gov.contrib.congress.mcdonald_rivet.working_parents_tax_relief_act.in_effect": {
+        "2020-01-01.2100-12-31": True,
+    },
+}
+
+
+@app.function(
+    image=image,
+    memory=32768,  # 32GB RAM for microsimulation
+    timeout=1800,  # 30 min timeout per year
+    retries=1,
+)
+def calculate_year(year: int) -> dict:
+    """Calculate aggregate impact for a single year on Modal."""
+    import numpy as np
+    from policyengine_us import Microsimulation
+    from policyengine_core.reforms import Reform
+
+    print(f"Starting calculation for year {year}...")
+
+    # Intra-decile bounds and labels
+    intra_bounds = [-np.inf, -0.05, -1e-3, 1e-3, 0.05, np.inf]
+    intra_labels = [
+        "Lose more than 5%",
+        "Lose less than 5%",
+        "No change",
+        "Gain less than 5%",
+        "Gain more than 5%",
+    ]
+
+    reform = Reform.from_dict(REFORM_DICT, country_id="us")
+
+    print(f"  Creating baseline simulation...")
+    sim_baseline = Microsimulation()
+    print(f"  Creating reform simulation...")
+    sim_reform = Microsimulation(reform=reform)
+
+    # ===== FISCAL IMPACT =====
+    print(f"  Calculating fiscal impact...")
+    fed_baseline = sim_baseline.calculate("income_tax", period=year, map_to="household")
+    fed_reform = sim_reform.calculate("income_tax", period=year, map_to="household")
+    federal_tax_revenue_impact = float((fed_reform - fed_baseline).sum())
+
+    state_baseline = sim_baseline.calculate("state_income_tax", period=year, map_to="household")
+    state_reform = sim_reform.calculate("state_income_tax", period=year, map_to="household")
+    state_tax_revenue_impact = float((state_reform - state_baseline).sum())
+
+    tax_revenue_impact = federal_tax_revenue_impact + state_tax_revenue_impact
+    budgetary_impact = tax_revenue_impact
+
+    # Net income for distributional analysis
+    baseline_net_income = sim_baseline.calculate("household_net_income", period=year, map_to="household")
+    reform_net_income = sim_reform.calculate("household_net_income", period=year, map_to="household")
+    income_change = reform_net_income - baseline_net_income
+
+    total_households = float((income_change * 0 + 1).sum())
+
+    # ===== WINNERS / LOSERS =====
+    print(f"  Calculating winners/losers...")
+    winners = float((income_change > 1).sum())
+    losers = float((income_change < -1).sum())
+    beneficiaries = float((income_change > 0).sum())
+
+    affected = abs(income_change) > 1
+    affected_count = float(affected.sum())
+    avg_benefit = (
+        float(income_change[affected].sum() / affected.sum())
+        if affected_count > 0
+        else 0.0
+    )
+
+    winners_rate = winners / total_households * 100
+    losers_rate = losers / total_households * 100
+
+    # ===== INCOME DECILE ANALYSIS =====
+    print(f"  Calculating decile analysis...")
+    decile = sim_baseline.calculate("household_income_decile", period=year, map_to="household")
+
+    decile_average = {}
+    decile_relative = {}
+    for d in range(1, 11):
+        dmask = decile == d
+        d_count = float(dmask.sum())
+        if d_count > 0:
+            d_baseline_sum = float(baseline_net_income[dmask].sum())
+            d_change_sum = float(income_change[dmask].sum())
+            decile_average[str(d)] = d_change_sum / d_count
+            decile_relative[str(d)] = d_change_sum / d_baseline_sum if d_baseline_sum != 0 else 0.0
+        else:
+            decile_average[str(d)] = 0.0
+            decile_relative[str(d)] = 0.0
+
+    # Intra-decile
+    household_weight = sim_reform.calculate("household_weight", period=year)
+    people_per_hh = sim_baseline.calculate("household_count_people", period=year, map_to="household")
+    capped_baseline = np.maximum(np.array(baseline_net_income), 1)
+    rel_change_arr = np.array(income_change) / capped_baseline
+
+    decile_arr = np.array(decile)
+    weight_arr = np.array(household_weight)
+    people_weighted = np.array(people_per_hh) * weight_arr
+
+    intra_decile_deciles = {label: [] for label in intra_labels}
+    for d in range(1, 11):
+        dmask = decile_arr == d
+        d_people = people_weighted[dmask]
+        d_total_people = d_people.sum()
+        d_rel = rel_change_arr[dmask]
+
+        for lower, upper, label in zip(intra_bounds[:-1], intra_bounds[1:], intra_labels):
+            in_group = (d_rel > lower) & (d_rel <= upper)
+            proportion = float(d_people[in_group].sum() / d_total_people) if d_total_people > 0 else 0.0
+            intra_decile_deciles[label].append(proportion)
+
+    intra_decile_all = {label: sum(intra_decile_deciles[label]) / 10 for label in intra_labels}
+
+    # ===== POVERTY IMPACT =====
+    print(f"  Calculating poverty impact...")
+    pov_bl = sim_baseline.calculate("in_poverty", period=year, map_to="person")
+    pov_rf = sim_reform.calculate("in_poverty", period=year, map_to="person")
+    poverty_baseline_rate = float(pov_bl.mean() * 100)
+    poverty_reform_rate = float(pov_rf.mean() * 100)
+    poverty_rate_change = poverty_reform_rate - poverty_baseline_rate
+    poverty_percent_change = poverty_rate_change / poverty_baseline_rate * 100 if poverty_baseline_rate > 0 else 0.0
+
+    # Child poverty
+    age_arr = np.array(sim_baseline.calculate("age", period=year))
+    is_child = age_arr < 18
+    pw_arr = np.array(sim_baseline.calculate("person_weight", period=year))
+    child_w = pw_arr[is_child]
+    total_child_w = child_w.sum()
+
+    pov_bl_arr = np.array(pov_bl).astype(bool)
+    pov_rf_arr = np.array(pov_rf).astype(bool)
+
+    def _child_rate(arr):
+        return float((arr[is_child] * child_w).sum() / total_child_w * 100) if total_child_w > 0 else 0.0
+
+    child_poverty_baseline_rate = _child_rate(pov_bl_arr)
+    child_poverty_reform_rate = _child_rate(pov_rf_arr)
+    child_poverty_rate_change = child_poverty_reform_rate - child_poverty_baseline_rate
+    child_poverty_percent_change = (
+        child_poverty_rate_change / child_poverty_baseline_rate * 100
+        if child_poverty_baseline_rate > 0
+        else 0.0
+    )
+
+    # Deep poverty
+    deep_bl = sim_baseline.calculate("in_deep_poverty", period=year, map_to="person")
+    deep_rf = sim_reform.calculate("in_deep_poverty", period=year, map_to="person")
+    deep_poverty_baseline_rate = float(deep_bl.mean() * 100)
+    deep_poverty_reform_rate = float(deep_rf.mean() * 100)
+    deep_poverty_rate_change = deep_poverty_reform_rate - deep_poverty_baseline_rate
+    deep_poverty_percent_change = (
+        deep_poverty_rate_change / deep_poverty_baseline_rate * 100
+        if deep_poverty_baseline_rate > 0
+        else 0.0
+    )
+
+    deep_bl_arr = np.array(deep_bl).astype(bool)
+    deep_rf_arr = np.array(deep_rf).astype(bool)
+    deep_child_poverty_baseline_rate = _child_rate(deep_bl_arr)
+    deep_child_poverty_reform_rate = _child_rate(deep_rf_arr)
+    deep_child_poverty_rate_change = deep_child_poverty_reform_rate - deep_child_poverty_baseline_rate
+    deep_child_poverty_percent_change = (
+        deep_child_poverty_rate_change / deep_child_poverty_baseline_rate * 100
+        if deep_child_poverty_baseline_rate > 0
+        else 0.0
+    )
+
+    # ===== INCOME BRACKET BREAKDOWN =====
+    print(f"  Calculating income brackets...")
+    agi = sim_reform.calculate("adjusted_gross_income", period=year, map_to="household")
+    agi_arr = np.array(agi)
+    change_arr = np.array(income_change)
+    affected_mask = np.abs(change_arr) > 1
+
+    income_brackets = [
+        (0, 25_000, "$0 - $25k"),
+        (25_000, 50_000, "$25k - $50k"),
+        (50_000, 75_000, "$50k - $75k"),
+        (75_000, 100_000, "$75k - $100k"),
+        (100_000, 150_000, "$100k - $150k"),
+        (150_000, 200_000, "$150k - $200k"),
+        (200_000, float("inf"), "$200k+"),
+    ]
+
+    by_income_bracket = []
+    for min_inc, max_inc, label in income_brackets:
+        mask = (agi_arr >= min_inc) & (agi_arr < max_inc) & affected_mask
+        bracket_affected = float(weight_arr[mask].sum())
+        if bracket_affected > 0:
+            bracket_cost = float((change_arr[mask] * weight_arr[mask]).sum())
+            bracket_avg = float(np.average(change_arr[mask], weights=weight_arr[mask]))
+        else:
+            bracket_cost = 0.0
+            bracket_avg = 0.0
+        by_income_bracket.append({
+            "bracket": label,
+            "beneficiaries": bracket_affected,
+            "total_cost": bracket_cost,
+            "avg_benefit": bracket_avg,
+        })
+
+    print(f"  Year {year} complete!")
+
+    return {
+        "year": year,
+        "budget": {
+            "budgetary_impact": budgetary_impact,
+            "federal_tax_revenue_impact": federal_tax_revenue_impact,
+            "state_tax_revenue_impact": state_tax_revenue_impact,
+            "tax_revenue_impact": tax_revenue_impact,
+            "households": total_households,
+        },
+        "decile": {"average": decile_average, "relative": decile_relative},
+        "intra_decile": {"all": intra_decile_all, "deciles": intra_decile_deciles},
+        "total_cost": -budgetary_impact,
+        "beneficiaries": beneficiaries,
+        "avg_benefit": avg_benefit,
+        "winners": winners,
+        "losers": losers,
+        "winners_rate": winners_rate,
+        "losers_rate": losers_rate,
+        "poverty_baseline_rate": poverty_baseline_rate,
+        "poverty_reform_rate": poverty_reform_rate,
+        "poverty_rate_change": poverty_rate_change,
+        "poverty_percent_change": poverty_percent_change,
+        "child_poverty_baseline_rate": child_poverty_baseline_rate,
+        "child_poverty_reform_rate": child_poverty_reform_rate,
+        "child_poverty_rate_change": child_poverty_rate_change,
+        "child_poverty_percent_change": child_poverty_percent_change,
+        "deep_poverty_baseline_rate": deep_poverty_baseline_rate,
+        "deep_poverty_reform_rate": deep_poverty_reform_rate,
+        "deep_poverty_rate_change": deep_poverty_rate_change,
+        "deep_poverty_percent_change": deep_poverty_percent_change,
+        "deep_child_poverty_baseline_rate": deep_child_poverty_baseline_rate,
+        "deep_child_poverty_reform_rate": deep_child_poverty_reform_rate,
+        "deep_child_poverty_rate_change": deep_child_poverty_rate_change,
+        "deep_child_poverty_percent_change": deep_child_poverty_percent_change,
+        "by_income_bracket": by_income_bracket,
+    }
+
+
+@app.local_entrypoint()
+def main():
+    """Run the pipeline: compute all years in parallel on Modal, save CSVs locally."""
+    import pandas as pd
+
+    output_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "frontend",
+        "public",
+        "data",
+    )
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Running WPTRA microsimulation for years {YEARS[0]}-{YEARS[-1]} on Modal...")
+    print(f"Output directory: {output_dir}")
+
+    # Run all years in parallel on Modal
+    results = list(calculate_year.map(YEARS))
+
+    # Sort by year
+    results.sort(key=lambda r: r["year"])
+
+    # Extract and save CSVs
+    distributional_rows = []
+    metrics_rows = []
+    winners_losers_rows = []
+    income_bracket_rows = []
+
+    for result in results:
+        year = result["year"]
+
+        # Distributional impact
+        for decile, avg in result["decile"]["average"].items():
+            distributional_rows.append({
+                "year": year,
+                "decile": decile,
+                "average_change": round(avg, 2),
+                "relative_change": round(result["decile"]["relative"][decile], 6),
+            })
+
+        # Metrics
+        metrics = [
+            ("budgetary_impact", result["budget"]["budgetary_impact"]),
+            ("federal_tax_revenue_impact", result["budget"]["federal_tax_revenue_impact"]),
+            ("state_tax_revenue_impact", result["budget"]["state_tax_revenue_impact"]),
+            ("tax_revenue_impact", result["budget"]["tax_revenue_impact"]),
+            ("households", result["budget"]["households"]),
+            ("total_cost", result["total_cost"]),
+            ("beneficiaries", result["beneficiaries"]),
+            ("avg_benefit", result["avg_benefit"]),
+            ("winners", result["winners"]),
+            ("losers", result["losers"]),
+            ("winners_rate", result["winners_rate"]),
+            ("losers_rate", result["losers_rate"]),
+            ("poverty_baseline_rate", result["poverty_baseline_rate"]),
+            ("poverty_reform_rate", result["poverty_reform_rate"]),
+            ("poverty_rate_change", result["poverty_rate_change"]),
+            ("poverty_percent_change", result["poverty_percent_change"]),
+            ("child_poverty_baseline_rate", result["child_poverty_baseline_rate"]),
+            ("child_poverty_reform_rate", result["child_poverty_reform_rate"]),
+            ("child_poverty_rate_change", result["child_poverty_rate_change"]),
+            ("child_poverty_percent_change", result["child_poverty_percent_change"]),
+            ("deep_poverty_baseline_rate", result["deep_poverty_baseline_rate"]),
+            ("deep_poverty_reform_rate", result["deep_poverty_reform_rate"]),
+            ("deep_poverty_rate_change", result["deep_poverty_rate_change"]),
+            ("deep_poverty_percent_change", result["deep_poverty_percent_change"]),
+            ("deep_child_poverty_baseline_rate", result["deep_child_poverty_baseline_rate"]),
+            ("deep_child_poverty_reform_rate", result["deep_child_poverty_reform_rate"]),
+            ("deep_child_poverty_rate_change", result["deep_child_poverty_rate_change"]),
+            ("deep_child_poverty_percent_change", result["deep_child_poverty_percent_change"]),
+        ]
+        for metric, value in metrics:
+            metrics_rows.append({"year": year, "metric": metric, "value": value})
+
+        # Winners/losers
+        intra = result["intra_decile"]
+        winners_losers_rows.append({
+            "year": year,
+            "decile": "All",
+            "gain_more_5pct": intra["all"]["Gain more than 5%"],
+            "gain_less_5pct": intra["all"]["Gain less than 5%"],
+            "no_change": intra["all"]["No change"],
+            "lose_less_5pct": intra["all"]["Lose less than 5%"],
+            "lose_more_5pct": intra["all"]["Lose more than 5%"],
+        })
+        for i in range(10):
+            winners_losers_rows.append({
+                "year": year,
+                "decile": str(i + 1),
+                "gain_more_5pct": intra["deciles"]["Gain more than 5%"][i],
+                "gain_less_5pct": intra["deciles"]["Gain less than 5%"][i],
+                "no_change": intra["deciles"]["No change"][i],
+                "lose_less_5pct": intra["deciles"]["Lose less than 5%"][i],
+                "lose_more_5pct": intra["deciles"]["Lose more than 5%"][i],
+            })
+
+        # Income brackets
+        for b in result["by_income_bracket"]:
+            income_bracket_rows.append({
+                "year": year,
+                "bracket": b["bracket"],
+                "beneficiaries": b["beneficiaries"],
+                "total_cost": b["total_cost"],
+                "avg_benefit": b["avg_benefit"],
+            })
+
+    # Save CSVs
+    pd.DataFrame(distributional_rows).to_csv(
+        os.path.join(output_dir, "distributional_impact.csv"), index=False
+    )
+    print(f"Saved: {output_dir}/distributional_impact.csv")
+
+    pd.DataFrame(metrics_rows).to_csv(
+        os.path.join(output_dir, "metrics.csv"), index=False
+    )
+    print(f"Saved: {output_dir}/metrics.csv")
+
+    pd.DataFrame(winners_losers_rows).to_csv(
+        os.path.join(output_dir, "winners_losers.csv"), index=False
+    )
+    print(f"Saved: {output_dir}/winners_losers.csv")
+
+    pd.DataFrame(income_bracket_rows).to_csv(
+        os.path.join(output_dir, "income_brackets.csv"), index=False
+    )
+    print(f"Saved: {output_dir}/income_brackets.csv")
+
+    print(f"\nDone! All data saved to {output_dir}/")
