@@ -100,11 +100,11 @@ function HouseholdImpactTab() {
   // Initialize state from hash parameters if present
   const getInitialValues = () => {
     if (typeof window === 'undefined') {
-      return { income: 75000, age: 35, state: 'CA', married: false, dependents: [2] };
+      return { income: 25000, age: 35, state: 'CA', married: false, dependents: [2] };
     }
     const params = parseHashParams(window.location.hash);
     return {
-      income: params.income ?? 75000,
+      income: params.income ?? 25000,
       age: params.age ?? 35,
       state: params.state ?? 'CA',
       married: params.married ?? false,
@@ -121,7 +121,7 @@ function HouseholdImpactTab() {
   const [dependentAges, setDependentAges] = useState<number[]>(initialValues.dependents);
   const [income, setIncome] = useState(initialValues.income);
   const [stateCode, setStateCode] = useState(initialValues.state);
-  const [maxEarnings, setMaxEarnings] = useState(500000);
+  const [maxEarnings, setMaxEarnings] = useState(100000);
   const [triggered, setTriggered] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<HouseholdRequest | null>(null);
 
@@ -337,28 +337,6 @@ function HouseholdImpactTab() {
         </div>
       </section>
 
-      {/* Chart x-axis options */}
-      {triggered && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Chart x-axis max:</span>
-          {[200000, 500000, 1000000, 2000000, 5000000, 10000000].map((v) => (
-            <button
-              key={v}
-              onClick={() => {
-                setMaxEarnings(v);
-                setSubmittedRequest(prev => prev ? { ...prev, max_earnings: v } : null);
-              }}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                maxEarnings === v
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              ${v >= 1000000 ? `${v / 1000000}M` : `${v / 1000}k`}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Impact results */}
       {submittedRequest && (

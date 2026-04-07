@@ -19,20 +19,19 @@ describe('PolicyOverview', () => {
     expect(screen.getByText('Working Parents Tax Relief Act')).toBeInTheDocument();
   });
 
-  it('displays the four policy provision cards', () => {
+  it('displays the three policy provision cards', () => {
     render(<PolicyOverview />);
     expect(screen.getByText('Credit boost (1 child)')).toBeInTheDocument();
     expect(screen.getByText('Credit boost (2+ children)')).toBeInTheDocument();
     expect(screen.getByText('Phaseout adjustment')).toBeInTheDocument();
-    expect(screen.getByText('Monthly payment option')).toBeInTheDocument();
   });
 
   it('displays the EITC parameters table', () => {
     render(<PolicyOverview />);
     expect(screen.getByText('EITC parameter changes for parents of young children')).toBeInTheDocument();
-    expect(screen.getByText('1 child with young child')).toBeInTheDocument();
-    expect(screen.getByText('2 children with 2 young')).toBeInTheDocument();
-    expect(screen.getByText('3+ children with 3 young')).toBeInTheDocument();
+    expect(screen.getByText('One young child')).toBeInTheDocument();
+    expect(screen.getByText('Two young children')).toBeInTheDocument();
+    expect(screen.getByText('Three young children')).toBeInTheDocument();
   });
 
   it('shows sources links', () => {

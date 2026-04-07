@@ -105,10 +105,10 @@ export default function PolicyOverview() {
         <p className="text-gray-700 mb-4">
           The Working Parents Tax Relief Act of 2026, introduced by Rep. McDonald Rivet,
           enhances the Earned Income Tax Credit (EITC) for parents of young children
-          (under age 4). The bill increases credit percentages and phaseout percentages
-          , providing qualifying households with a greater benefit amount.
+          (under age 4). The bill increases credit percentages and phaseout percentages,
+          providing qualifying households with a higher benefit amount.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="font-semibold text-gray-800 mb-2">Credit boost (1 child)</h3>
             <p className="text-sm text-gray-600">
@@ -129,13 +129,6 @@ export default function PolicyOverview() {
             <p className="text-sm text-gray-600">
               The phaseout percentage increases by 5 percentage points for each
               of the youngest 3 qualifying children under age 4 (maximum +15pp).
-            </p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-2">Monthly payment option</h3>
-            <p className="text-sm text-gray-600">
-              The increased credit amount may be paid monthly rather than as
-              an annual lump sum.
             </p>
           </div>
         </div>
@@ -240,19 +233,19 @@ export default function PolicyOverview() {
             </thead>
             <tbody>
               <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700">1 child with young child</td>
+                <td className="py-3 px-4 text-gray-700">One young child</td>
                 <td className="py-3 px-4 text-right text-gray-700">$4,427</td>
                 <td className="py-3 px-4 text-right text-gray-700">$9,927</td>
                 <td className="py-3 px-4 text-right font-semibold text-primary-600">2.24x</td>
               </tr>
               <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700">2 children with 2 young</td>
+                <td className="py-3 px-4 text-gray-700">Two young children</td>
                 <td className="py-3 px-4 text-right text-gray-700">$7,316</td>
                 <td className="py-3 px-4 text-right text-gray-700">$18,316</td>
                 <td className="py-3 px-4 text-right font-semibold text-primary-600">2.50x</td>
               </tr>
               <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700">3+ children with 3 young</td>
+                <td className="py-3 px-4 text-gray-700">Three young children</td>
                 <td className="py-3 px-4 text-right text-gray-700">$8,231</td>
                 <td className="py-3 px-4 text-right text-gray-700">$24,731</td>
                 <td className="py-3 px-4 text-right font-semibold text-primary-600">3.00x</td>

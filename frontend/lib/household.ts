@@ -15,7 +15,7 @@ const GROUP_UNITS = ["families", "spm_units", "tax_units", "households"] as cons
  */
 const REFORM_POLICY: Record<string, Record<string, boolean>> = {
   "gov.contrib.congress.mcdonald_rivet.working_parents_tax_relief_act.in_effect": {
-    "2026-01-01.2100-12-31": true,
+    "2020-01-01.2100-12-31": true,
   },
 };
 

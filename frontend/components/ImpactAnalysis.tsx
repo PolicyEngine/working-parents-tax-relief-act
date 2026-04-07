@@ -38,10 +38,19 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
   }
 
   if (error) {
+    const errorMessage = (error as Error).message;
+    const isApiNotUpdated = errorMessage.includes('500') || errorMessage.includes('too many values');
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h2 className="text-red-800 font-semibold mb-2">Error calculating impact</h2>
-        <p className="text-red-700">{(error as Error).message}</p>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h2 className="text-yellow-800 font-semibold mb-2">Household calculator temporarily unavailable</h2>
+        {isApiNotUpdated ? (
+          <p className="text-yellow-700">
+            The PolicyEngine API is being updated to include the Working Parents Tax Relief Act reform.
+            Please check back soon, or view the <strong>National impact</strong> tab for precomputed results.
+          </p>
+        ) : (
+          <p className="text-yellow-700">{errorMessage}</p>
+        )}
       </div>
     );
   }

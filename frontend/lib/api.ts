@@ -68,8 +68,13 @@ async function peCalculate(body: Record<string, unknown>): Promise<PEApiResponse
     } catch {
       errorBody = await response.text();
     }
+    const errorMessage = typeof errorBody === 'object' && errorBody?.message
+      ? errorBody.message
+      : typeof errorBody === 'string'
+        ? errorBody
+        : JSON.stringify(errorBody);
     throw new ApiError(
-      `PolicyEngine API error: ${response.status}`,
+      `PolicyEngine API error: ${response.status} - ${errorMessage}`,
       response.status,
       errorBody
     );
