@@ -31,6 +31,8 @@ export interface IncomeBracket {
 export interface BudgetImpact {
   baseline_net_income: number;
   budgetary_impact: number;
+  federal_tax_revenue_impact: number;
+  state_tax_revenue_impact: number;
   tax_revenue_impact: number;
   benefit_spending_impact: number;
   households: number;

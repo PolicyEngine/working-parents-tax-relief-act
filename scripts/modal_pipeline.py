@@ -279,8 +279,13 @@ def calculate_year(year: int) -> dict:
 
 
 @app.local_entrypoint()
-def main():
-    """Run the pipeline: compute all years in parallel on Modal, save CSVs locally."""
+def main(years: str = ""):
+    """Run the pipeline: compute all years in parallel on Modal, save CSVs locally.
+
+    Args:
+        years: Comma-separated list of years to run (e.g., "2028,2030,2033").
+               If empty, runs all years 2026-2035.
+    """
     import pandas as pd
 
     output_dir = os.path.join(
@@ -291,11 +296,17 @@ def main():
     )
     os.makedirs(output_dir, exist_ok=True)
 
-    print(f"Running WPTRA microsimulation for years {YEARS[0]}-{YEARS[-1]} on Modal...")
+    # Parse years argument
+    if years:
+        target_years = [int(y.strip()) for y in years.split(",")]
+    else:
+        target_years = YEARS
+
+    print(f"Running WPTRA microsimulation for years {target_years} on Modal...")
     print(f"Output directory: {output_dir}")
 
-    # Run all years in parallel on Modal
-    results = list(calculate_year.map(YEARS))
+    # Run specified years in parallel on Modal
+    results = list(calculate_year.map(target_years))
 
     # Sort by year
     results.sort(key=lambda r: r["year"])
@@ -384,25 +395,29 @@ def main():
                 "avg_benefit": b["avg_benefit"],
             })
 
-    # Save CSVs
-    pd.DataFrame(distributional_rows).to_csv(
-        os.path.join(output_dir, "distributional_impact.csv"), index=False
-    )
-    print(f"Saved: {output_dir}/distributional_impact.csv")
+    # Helper to merge new data with existing CSV
+    def merge_and_save(new_rows: list, filename: str, years_to_replace: list):
+        filepath = os.path.join(output_dir, filename)
+        new_df = pd.DataFrame(new_rows)
 
-    pd.DataFrame(metrics_rows).to_csv(
-        os.path.join(output_dir, "metrics.csv"), index=False
-    )
-    print(f"Saved: {output_dir}/metrics.csv")
+        # If file exists and we're doing a partial update, merge with existing
+        if os.path.exists(filepath) and len(years_to_replace) < 10:
+            existing_df = pd.read_csv(filepath)
+            # Remove old data for years we're replacing
+            existing_df = existing_df[~existing_df["year"].isin(years_to_replace)]
+            # Combine and sort
+            combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+            combined_df = combined_df.sort_values("year").reset_index(drop=True)
+            combined_df.to_csv(filepath, index=False)
+        else:
+            new_df.to_csv(filepath, index=False)
 
-    pd.DataFrame(winners_losers_rows).to_csv(
-        os.path.join(output_dir, "winners_losers.csv"), index=False
-    )
-    print(f"Saved: {output_dir}/winners_losers.csv")
+        print(f"Saved: {filepath}")
 
-    pd.DataFrame(income_bracket_rows).to_csv(
-        os.path.join(output_dir, "income_brackets.csv"), index=False
-    )
-    print(f"Saved: {output_dir}/income_brackets.csv")
+    # Save CSVs (merging with existing data if partial update)
+    merge_and_save(distributional_rows, "distributional_impact.csv", target_years)
+    merge_and_save(metrics_rows, "metrics.csv", target_years)
+    merge_and_save(winners_losers_rows, "winners_losers.csv", target_years)
+    merge_and_save(income_bracket_rows, "income_brackets.csv", target_years)
 
     print(f"\nDone! All data saved to {output_dir}/")

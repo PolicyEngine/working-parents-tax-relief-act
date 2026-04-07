@@ -59,6 +59,8 @@ function buildAggregateResponse(year: number): Promise<AggregateImpactResponse> 
       budget: {
         baseline_net_income: m.baseline_net_income,
         budgetary_impact: m.budgetary_impact,
+        federal_tax_revenue_impact: m.federal_tax_revenue_impact,
+        state_tax_revenue_impact: m.state_tax_revenue_impact,
         tax_revenue_impact: m.tax_revenue_impact,
         benefit_spending_impact: m.benefit_spending_impact,
         households: m.households,

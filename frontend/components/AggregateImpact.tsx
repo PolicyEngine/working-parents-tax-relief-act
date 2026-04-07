@@ -172,7 +172,7 @@ export default function AggregateImpact({ triggered }: Props) {
             <div className={`rounded-lg p-6 border ${
               data.budget.budgetary_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
             }`}>
-              <p className="text-sm text-gray-700 mb-2">Budgetary impact ({selectedYear})</p>
+              <p className="text-sm text-gray-700 mb-2">Total budgetary impact ({selectedYear})</p>
               <p className={`text-3xl font-bold ${
                 data.budget.budgetary_impact >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
@@ -191,6 +191,30 @@ export default function AggregateImpact({ triggered }: Props) {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Federal vs State breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`rounded-lg p-4 border ${
+              data.budget.federal_tax_revenue_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+            }`}>
+              <p className="text-sm text-gray-700 mb-1">Federal tax revenue impact</p>
+              <p className={`text-2xl font-bold ${
+                data.budget.federal_tax_revenue_impact >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {formatBillions(data.budget.federal_tax_revenue_impact)}
+              </p>
+            </div>
+            <div className={`rounded-lg p-4 border ${
+              data.budget.state_tax_revenue_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+            }`}>
+              <p className="text-sm text-gray-700 mb-1">State tax revenue impact</p>
+              <p className={`text-2xl font-bold ${
+                data.budget.state_tax_revenue_impact >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {formatBillions(data.budget.state_tax_revenue_impact)}
+              </p>
+            </div>
           </div>
 
           {/* Income bracket table */}
