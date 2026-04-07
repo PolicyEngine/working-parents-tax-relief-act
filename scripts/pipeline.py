@@ -1,152 +1,218 @@
-#!/usr/bin/env python3
-"""
-Data pipeline for the Working Parents Tax Relief Act calculator.
+"""Data generation pipeline for Working Parents Tax Relief Act dashboard.
 
-This script orchestrates the generation of precomputed CSV data for the
-National Impact tab. It runs microsimulations for multiple years and
-outputs CSV files to frontend/public/data/.
+Runs microsimulation for each year in the budget window (2026-2035)
+and saves output to frontend/public/data/ as CSV files.
+
+Uses subprocess isolation per year to prevent memory accumulation.
 
 Usage:
-    python scripts/pipeline.py           # Run all years, skip existing
-    python scripts/pipeline.py --fresh   # Regenerate all data
-    python scripts/pipeline.py --year 2026  # Run single year
+    python scripts/pipeline.py
 """
 
-import argparse
+import json
+import os
 import subprocess
 import sys
-from pathlib import Path
-from typing import List
+
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Default output directory — Next.js serves files from public/
+DEFAULT_OUTPUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "frontend",
+    "public",
+    "data",
+)
+
+YEARS = list(range(2026, 2036))
 
 
-# Configuration
-YEARS = list(range(2026, 2036))  # 2026-2035
-OUTPUT_DIR = Path(__file__).parent.parent / "frontend" / "public" / "data"
+def _save_csv(df: pd.DataFrame, path: str) -> None:
+    """Save DataFrame to CSV, creating parent directories if needed."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    df.to_csv(path, index=False)
+    print(f"Saved: {path}")
 
 
-def run_year(year: int, force: bool = False) -> bool:
-    """
-    Run the pipeline worker for a single year.
-
-    Args:
-        year: The year to process
-        force: Whether to force regeneration even if data exists
-
-    Returns:
-        True if successful, False otherwise
-    """
-    worker_script = Path(__file__).parent / "_pipeline_worker.py"
-
-    # Check if data already exists (unless force is True)
-    metrics_file = OUTPUT_DIR / "metrics.csv"
-    if not force and metrics_file.exists():
-        import csv
-        with open(metrics_file, "r") as f:
-            reader = csv.DictReader(f)
-            existing_years = {int(row["year"]) for row in reader}
-            if year in existing_years:
-                print(f"  Year {year} already exists in metrics.csv, skipping...")
-                return True
-
-    # Run worker subprocess
-    print(f"  Processing year {year}...")
-    try:
-        result = subprocess.run(
-            [sys.executable, str(worker_script), str(year)],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        if result.stdout:
-            print(result.stdout)
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"  ERROR processing year {year}:")
-        print(e.stderr)
-        return False
+def _extract_distributional(result: dict, year: int) -> list[dict]:
+    """Extract distributional impact rows from aggregate result."""
+    rows = []
+    for decile, avg in result["decile"]["average"].items():
+        rows.append({
+            "year": year,
+            "decile": decile,
+            "average_change": round(avg, 2),
+            "relative_change": round(result["decile"]["relative"][decile], 6),
+        })
+    return rows
 
 
-def merge_csv_files(years: List[int]) -> None:
-    """
-    Merge per-year CSV outputs into consolidated files.
+def _extract_metrics(result: dict, year: int) -> list[dict]:
+    """Extract flat metrics into rows."""
+    metrics = [
+        ("budgetary_impact", result["budget"]["budgetary_impact"]),
+        ("federal_tax_revenue_impact", result["budget"]["federal_tax_revenue_impact"]),
+        ("state_tax_revenue_impact", result["budget"]["state_tax_revenue_impact"]),
+        ("tax_revenue_impact", result["budget"]["tax_revenue_impact"]),
+        ("households", result["budget"]["households"]),
+        ("total_cost", result["total_cost"]),
+        ("beneficiaries", result["beneficiaries"]),
+        ("avg_benefit", result["avg_benefit"]),
+        ("winners", result["winners"]),
+        ("losers", result["losers"]),
+        ("winners_rate", result["winners_rate"]),
+        ("losers_rate", result["losers_rate"]),
+        ("poverty_baseline_rate", result["poverty_baseline_rate"]),
+        ("poverty_reform_rate", result["poverty_reform_rate"]),
+        ("poverty_rate_change", result["poverty_rate_change"]),
+        ("poverty_percent_change", result["poverty_percent_change"]),
+        ("child_poverty_baseline_rate", result["child_poverty_baseline_rate"]),
+        ("child_poverty_reform_rate", result["child_poverty_reform_rate"]),
+        ("child_poverty_rate_change", result["child_poverty_rate_change"]),
+        ("child_poverty_percent_change", result["child_poverty_percent_change"]),
+        ("deep_poverty_baseline_rate", result["deep_poverty_baseline_rate"]),
+        ("deep_poverty_reform_rate", result["deep_poverty_reform_rate"]),
+        ("deep_poverty_rate_change", result["deep_poverty_rate_change"]),
+        ("deep_poverty_percent_change", result["deep_poverty_percent_change"]),
+        ("deep_child_poverty_baseline_rate", result["deep_child_poverty_baseline_rate"]),
+        ("deep_child_poverty_reform_rate", result["deep_child_poverty_reform_rate"]),
+        ("deep_child_poverty_rate_change", result["deep_child_poverty_rate_change"]),
+        ("deep_child_poverty_percent_change", result["deep_child_poverty_percent_change"]),
+    ]
+    return [{"year": year, "metric": k, "value": v} for k, v in metrics]
 
-    The worker script appends to shared CSV files, so this function
-    just ensures they exist and have proper headers.
-    """
-    # The worker handles appending, so we just verify files exist
-    required_files = [
-        "distributional_impact.csv",
-        "metrics.csv",
-        "winners_losers.csv",
-        "income_brackets.csv",
+
+def _extract_winners_losers(result: dict, year: int) -> list[dict]:
+    """Extract intra-decile winners/losers data."""
+    intra = result["intra_decile"]
+    rows = []
+
+    # "All" row
+    rows.append({
+        "year": year,
+        "decile": "All",
+        "gain_more_5pct": intra["all"]["Gain more than 5%"],
+        "gain_less_5pct": intra["all"]["Gain less than 5%"],
+        "no_change": intra["all"]["No change"],
+        "lose_less_5pct": intra["all"]["Lose less than 5%"],
+        "lose_more_5pct": intra["all"]["Lose more than 5%"],
+    })
+
+    # Per-decile rows
+    for i in range(10):
+        rows.append({
+            "year": year,
+            "decile": str(i + 1),
+            "gain_more_5pct": intra["deciles"]["Gain more than 5%"][i],
+            "gain_less_5pct": intra["deciles"]["Gain less than 5%"][i],
+            "no_change": intra["deciles"]["No change"][i],
+            "lose_less_5pct": intra["deciles"]["Lose less than 5%"][i],
+            "lose_more_5pct": intra["deciles"]["Lose more than 5%"][i],
+        })
+
+    return rows
+
+
+def _extract_income_brackets(result: dict, year: int) -> list[dict]:
+    """Extract income bracket breakdown."""
+    return [
+        {
+            "year": year,
+            "bracket": b["bracket"],
+            "beneficiaries": b["beneficiaries"],
+            "total_cost": b["total_cost"],
+            "avg_benefit": b["avg_benefit"],
+        }
+        for b in result["by_income_bracket"]
     ]
 
-    for filename in required_files:
-        filepath = OUTPUT_DIR / filename
-        if not filepath.exists():
-            print(f"  WARNING: {filename} not found after pipeline run")
 
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Generate precomputed data for the WPTRA dashboard"
+def _run_year_subprocess(year: int) -> dict:
+    """Run one year in a subprocess to isolate memory."""
+    worker_script = os.path.join(os.path.dirname(__file__), "_pipeline_worker.py")
+    proc = subprocess.run(
+        [sys.executable, "-u", worker_script, str(year)],
+        capture_output=False,
+        stderr=None,  # inherit stderr so progress shows in real-time
+        stdout=subprocess.PIPE,
+        text=True,
     )
-    parser.add_argument(
-        "--fresh",
-        action="store_true",
-        help="Regenerate all data from scratch",
-    )
-    parser.add_argument(
-        "--year",
-        type=int,
-        help="Process only this year",
-    )
-    args = parser.parse_args()
+    if proc.returncode != 0:
+        raise RuntimeError(f"Worker failed for year {year}")
+    return json.loads(proc.stdout)
 
-    print("=" * 60)
-    print("Working Parents Tax Relief Act Data Pipeline")
-    print("=" * 60)
 
-    # Ensure output directory exists
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+def _load_existing_csv(path: str) -> pd.DataFrame:
+    """Load existing CSV or return empty DataFrame."""
+    if os.path.exists(path):
+        try:
+            df = pd.read_csv(path)
+            if len(df) > 0:
+                return df
+        except Exception:
+            pass
+    return pd.DataFrame()
 
-    # If fresh, remove existing files
-    if args.fresh:
-        print("\n[Fresh mode] Removing existing data files...")
-        for f in OUTPUT_DIR.glob("*.csv"):
-            f.unlink()
-            print(f"  Removed {f.name}")
 
-    # Determine years to process
-    years_to_process = [args.year] if args.year else YEARS
+def _append_and_save(new_rows: list[dict], path: str, year: int) -> None:
+    """Append new rows to CSV, removing any existing data for this year."""
+    df_existing = _load_existing_csv(path)
 
-    print(f"\nProcessing years: {years_to_process}")
-    print("-" * 60)
+    # Remove existing data for this year (in case of re-run)
+    if "year" in df_existing.columns and len(df_existing) > 0:
+        df_existing = df_existing[df_existing["year"] != year]
 
-    # Process each year
-    successful = 0
-    failed = 0
-    for year in years_to_process:
-        print(f"\n[Year {year}]")
-        if run_year(year, force=args.fresh):
-            successful += 1
-        else:
-            failed += 1
+    df_new = pd.DataFrame(new_rows)
+    df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+    df_combined = df_combined.sort_values("year").reset_index(drop=True)
+    _save_csv(df_combined, path)
 
-    # Merge outputs
-    print("\n" + "-" * 60)
-    print("Merging outputs...")
-    merge_csv_files(years_to_process)
 
-    # Summary
-    print("\n" + "=" * 60)
-    print(f"Pipeline complete: {successful} successful, {failed} failed")
-    print(f"Output directory: {OUTPUT_DIR}")
-    print("=" * 60)
+def generate_all_data(output_dir: str = None) -> dict[str, pd.DataFrame]:
+    """Generate all dashboard data as CSVs for all years.
 
-    if failed > 0:
-        sys.exit(1)
+    Saves incrementally after each year to prevent memory issues.
+    """
+    output_dir = output_dir or DEFAULT_OUTPUT_DIR
+    os.makedirs(output_dir, exist_ok=True)
+
+    paths = {
+        "distributional_impact": os.path.join(output_dir, "distributional_impact.csv"),
+        "metrics": os.path.join(output_dir, "metrics.csv"),
+        "winners_losers": os.path.join(output_dir, "winners_losers.csv"),
+        "income_brackets": os.path.join(output_dir, "income_brackets.csv"),
+    }
+
+    # Check which years are already computed
+    existing_metrics = _load_existing_csv(paths["metrics"])
+    completed_years = set()
+    if "year" in existing_metrics.columns:
+        completed_years = set(existing_metrics["year"].unique())
+
+    for i, year in enumerate(YEARS):
+        if year in completed_years:
+            print(f"\n[{i + 1}/{len(YEARS)}] Year {year} - already computed, skipping.")
+            continue
+
+        print(f"\n[{i + 1}/{len(YEARS)}] Year {year}...")
+
+        result = _run_year_subprocess(year)
+
+        # Save each dataset incrementally
+        _append_and_save(_extract_distributional(result, year), paths["distributional_impact"], year)
+        _append_and_save(_extract_metrics(result, year), paths["metrics"], year)
+        _append_and_save(_extract_winners_losers(result, year), paths["winners_losers"], year)
+        _append_and_save(_extract_income_brackets(result, year), paths["income_brackets"], year)
+
+        print(f"  Year {year} saved.")
+
+    print(f"\nAll data saved to {output_dir}/")
+
+    # Return final DataFrames
+    return {name: pd.read_csv(path) for name, path in paths.items()}
 
 
 if __name__ == "__main__":
-    main()
+    generate_all_data()
