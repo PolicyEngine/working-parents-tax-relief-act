@@ -226,8 +226,8 @@ export default function PolicyOverview() {
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Scenario</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-900">Baseline max</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-900">Reform max</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-900">Baseline maximum</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-900">Reform maximum</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Multiplier</th>
               </tr>
             </thead>
