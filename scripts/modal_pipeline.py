@@ -395,6 +395,11 @@ def main(years: str = ""):
                 "avg_benefit": b["avg_benefit"],
             })
 
+    # Define sort orders for categorical columns
+    BRACKET_ORDER = ["$0 - $25k", "$25k - $50k", "$50k - $75k", "$75k - $100k",
+                     "$100k - $150k", "$150k - $200k", "$200k+"]
+    DECILE_ORDER = ["All"] + [str(i) for i in range(1, 11)]
+
     # Helper to merge new data with existing CSV
     def merge_and_save(new_rows: list, filename: str, years_to_replace: list):
         filepath = os.path.join(output_dir, filename)
@@ -405,13 +410,27 @@ def main(years: str = ""):
             existing_df = pd.read_csv(filepath)
             # Remove old data for years we're replacing
             existing_df = existing_df[~existing_df["year"].isin(years_to_replace)]
-            # Combine and sort
+            # Combine
             combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-            combined_df = combined_df.sort_values("year").reset_index(drop=True)
-            combined_df.to_csv(filepath, index=False)
         else:
-            new_df.to_csv(filepath, index=False)
+            combined_df = new_df
 
+        # Sort by year and secondary column if present
+        if "bracket" in combined_df.columns:
+            combined_df["_sort"] = combined_df["bracket"].map(
+                {b: i for i, b in enumerate(BRACKET_ORDER)}
+            )
+            combined_df = combined_df.sort_values(["year", "_sort"]).drop(columns=["_sort"])
+        elif "decile" in combined_df.columns:
+            combined_df["_sort"] = combined_df["decile"].astype(str).map(
+                {d: i for i, d in enumerate(DECILE_ORDER)}
+            )
+            combined_df = combined_df.sort_values(["year", "_sort"]).drop(columns=["_sort"])
+        else:
+            combined_df = combined_df.sort_values("year")
+
+        combined_df = combined_df.reset_index(drop=True)
+        combined_df.to_csv(filepath, index=False)
         print(f"Saved: {filepath}")
 
     # Save CSVs (merging with existing data if partial update)
