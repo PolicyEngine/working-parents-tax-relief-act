@@ -3,7 +3,10 @@ import parseCSV from "@/lib/parseCSV";
 import { AggregateImpactResponse, IntraDecileAll, IntraDecileDeciles } from "@/lib/types";
 
 async function fetchCSV(filename: string): Promise<Record<string, string | number>[]> {
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  // Use same default as next.config.js
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH !== undefined
+    ? process.env.NEXT_PUBLIC_BASE_PATH
+    : "/us/working-parents-tax-relief-act";
   const res = await fetch(`${basePath}/data/${filename}`);
   if (!res.ok) throw new Error(`Failed to load ${filename}`);
   const text = await res.text();
