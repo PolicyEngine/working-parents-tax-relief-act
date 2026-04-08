@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import USDistrictChoroplethMap from './USDistrictChoroplethMap';
+import USDistrictChoroplethMap from './DynamicDistrictMap';
 import MapTypeToggle from './MapTypeToggle';
 import ChartWatermark from './ChartWatermark';
 
