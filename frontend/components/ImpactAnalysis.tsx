@@ -148,7 +148,7 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
                 : 'bg-gray-50 border-gray-300'
             }`}
           >
-            <p className="text-sm text-gray-700 mb-2">State EITC change</p>
+            <p className="text-sm text-gray-700 mb-2">{request?.state_code} EITC change</p>
             <p
               className={`text-3xl font-bold ${
                 benefitData.state_eitc_change > 0
