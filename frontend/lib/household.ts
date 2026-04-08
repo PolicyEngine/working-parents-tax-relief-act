@@ -54,6 +54,8 @@ export function buildHouseholdSituation(
       "your tax unit": {
         members: ["you"],
         adjusted_gross_income: { [yearStr]: null },
+        eitc: { [yearStr]: null },
+        state_eitc: { [yearStr]: null },
       },
     },
     households: {

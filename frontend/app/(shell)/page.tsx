@@ -306,9 +306,6 @@ function HouseholdImpactTab() {
             )}
           </div>
 
-          {/* Empty cell for spacing */}
-          <div></div>
-
           {/* State */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">State</label>
@@ -323,7 +320,6 @@ function HouseholdImpactTab() {
               ))}
             </select>
           </div>
-
         </div>
 
         {/* Calculate button */}

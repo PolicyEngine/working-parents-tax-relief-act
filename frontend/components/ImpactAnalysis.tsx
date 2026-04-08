@@ -85,29 +85,84 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
           Based on your employment income of <strong>{formatCurrency(request?.income ?? 0)}</strong>
         </p>
 
-        <div
-          className={`rounded-lg p-6 border ${
-            benefitData.difference > 0
-              ? 'bg-green-50 border-success'
-              : benefitData.difference < 0
-              ? 'bg-red-50 border-red-300'
-              : 'bg-gray-50 border-gray-300'
-          }`}
-        >
-          <p className="text-sm text-gray-700 mb-2">Change in net income</p>
-          <p
-            className={`text-3xl font-bold ${
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Net income change */}
+          <div
+            className={`rounded-lg p-6 border ${
               benefitData.difference > 0
-                ? 'text-green-600'
+                ? 'bg-green-50 border-success'
                 : benefitData.difference < 0
-                ? 'text-red-600'
-                : 'text-gray-600'
+                ? 'bg-red-50 border-red-300'
+                : 'bg-gray-50 border-gray-300'
             }`}
           >
-            {benefitData.difference !== 0
-              ? `${benefitData.difference > 0 ? '+' : ''}${formatCurrency(benefitData.difference)}/year`
-              : '$0/year'}
-          </p>
+            <p className="text-sm text-gray-700 mb-2">Change in net income</p>
+            <p
+              className={`text-3xl font-bold ${
+                benefitData.difference > 0
+                  ? 'text-green-600'
+                  : benefitData.difference < 0
+                  ? 'text-red-600'
+                  : 'text-gray-600'
+              }`}
+            >
+              {benefitData.difference !== 0
+                ? `${benefitData.difference > 0 ? '+' : ''}${formatCurrency(benefitData.difference)}/year`
+                : '$0/year'}
+            </p>
+          </div>
+
+          {/* Federal EITC change */}
+          <div
+            className={`rounded-lg p-6 border ${
+              benefitData.federal_eitc_change > 0
+                ? 'bg-green-50 border-success'
+                : benefitData.federal_eitc_change < 0
+                ? 'bg-red-50 border-red-300'
+                : 'bg-gray-50 border-gray-300'
+            }`}
+          >
+            <p className="text-sm text-gray-700 mb-2">Federal EITC change</p>
+            <p
+              className={`text-3xl font-bold ${
+                benefitData.federal_eitc_change > 0
+                  ? 'text-green-600'
+                  : benefitData.federal_eitc_change < 0
+                  ? 'text-red-600'
+                  : 'text-gray-600'
+              }`}
+            >
+              {benefitData.federal_eitc_change !== 0
+                ? `${benefitData.federal_eitc_change > 0 ? '+' : ''}${formatCurrency(benefitData.federal_eitc_change)}/year`
+                : '$0/year'}
+            </p>
+          </div>
+
+          {/* State EITC change */}
+          <div
+            className={`rounded-lg p-6 border ${
+              benefitData.state_eitc_change > 0
+                ? 'bg-green-50 border-success'
+                : benefitData.state_eitc_change < 0
+                ? 'bg-red-50 border-red-300'
+                : 'bg-gray-50 border-gray-300'
+            }`}
+          >
+            <p className="text-sm text-gray-700 mb-2">State EITC change</p>
+            <p
+              className={`text-3xl font-bold ${
+                benefitData.state_eitc_change > 0
+                  ? 'text-green-600'
+                  : benefitData.state_eitc_change < 0
+                  ? 'text-red-600'
+                  : 'text-gray-600'
+              }`}
+            >
+              {benefitData.state_eitc_change !== 0
+                ? `${benefitData.state_eitc_change > 0 ? '+' : ''}${formatCurrency(benefitData.state_eitc_change)}/year`
+                : '$0/year'}
+            </p>
+          </div>
         </div>
       </div>
 

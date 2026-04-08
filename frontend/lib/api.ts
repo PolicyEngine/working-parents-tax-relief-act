@@ -49,6 +49,7 @@ interface PEApiResponse {
   result: {
     households: Record<string, Record<string, Record<string, number[]>>>;
     people: Record<string, Record<string, Record<string, number[]>>>;
+    tax_units: Record<string, Record<string, Record<string, number[]>>>;
   };
 }
 
@@ -110,6 +111,16 @@ export const api = {
         "employment_income"
       ][yearStr];
 
+    // Extract EITC arrays
+    const baselineFederalEitc: number[] =
+      baselineResult.result.tax_units["your tax unit"]["eitc"][yearStr];
+    const reformFederalEitc: number[] =
+      reformResult.result.tax_units["your tax unit"]["eitc"][yearStr];
+    const baselineStateEitc: number[] =
+      baselineResult.result.tax_units["your tax unit"]["state_eitc"][yearStr];
+    const reformStateEitc: number[] =
+      reformResult.result.tax_units["your tax unit"]["state_eitc"][yearStr];
+
     // Compute net income change at each point
     const netIncomeChange = reformNetIncome.map(
       (val, i) => val - baselineNetIncome[i]
@@ -127,6 +138,28 @@ export const api = {
       request.income
     );
 
+    // Interpolate EITC values at user's income
+    const baselineFederalEitcAtIncome = interpolate(
+      incomeRange,
+      baselineFederalEitc,
+      request.income
+    );
+    const reformFederalEitcAtIncome = interpolate(
+      incomeRange,
+      reformFederalEitc,
+      request.income
+    );
+    const baselineStateEitcAtIncome = interpolate(
+      incomeRange,
+      baselineStateEitc,
+      request.income
+    );
+    const reformStateEitcAtIncome = interpolate(
+      incomeRange,
+      reformStateEitc,
+      request.income
+    );
+
     return {
       income_range: incomeRange,
       net_income_change: netIncomeChange,
@@ -134,6 +167,8 @@ export const api = {
         baseline: baselineAtIncome,
         reform: reformAtIncome,
         difference: reformAtIncome - baselineAtIncome,
+        federal_eitc_change: reformFederalEitcAtIncome - baselineFederalEitcAtIncome,
+        state_eitc_change: reformStateEitcAtIncome - baselineStateEitcAtIncome,
       },
       x_axis_max: request.max_earnings,
     };

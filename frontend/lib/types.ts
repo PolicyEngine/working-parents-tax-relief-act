@@ -12,6 +12,8 @@ export interface BenefitAtIncome {
   baseline: number;
   reform: number;
   difference: number;
+  federal_eitc_change: number;
+  state_eitc_change: number;
 }
 
 export interface HouseholdImpactResponse {
