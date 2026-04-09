@@ -111,32 +111,36 @@ def calculate_single_district_impact(district_id: str, year: int = YEAR) -> dict
             winners_share = 0.0
             losers_share = 0.0
 
-        # Poverty analysis (person-level)
-        person_weight = np.array(sim_baseline.calculate("person_weight", period=year))
-        total_person_weight = person_weight.sum()
+        # Poverty analysis using SPM unit level (more reliable than person-level)
+        try:
+            spm_unit_weight = np.array(sim_baseline.calculate("spm_unit_weight", period=year))
+            total_spm_weight = spm_unit_weight.sum()
 
-        if total_person_weight > 0:
-            # Overall poverty
-            baseline_in_poverty = np.array(sim_baseline.calculate("in_poverty", period=year))
-            reform_in_poverty = np.array(sim_reform.calculate("in_poverty", period=year))
+            if total_spm_weight > 0:
+                # Overall poverty at SPM unit level
+                baseline_in_poverty = np.array(sim_baseline.calculate("spm_unit_is_in_spm_poverty", period=year))
+                reform_in_poverty = np.array(sim_reform.calculate("spm_unit_is_in_spm_poverty", period=year))
 
-            baseline_poverty_rate = (baseline_in_poverty * person_weight).sum() / total_person_weight
-            reform_poverty_rate = (reform_in_poverty * person_weight).sum() / total_person_weight
-            poverty_pct_change = ((reform_poverty_rate - baseline_poverty_rate) / baseline_poverty_rate * 100) if baseline_poverty_rate > 0 else 0.0
+                baseline_poverty_rate = (baseline_in_poverty * spm_unit_weight).sum() / total_spm_weight
+                reform_poverty_rate = (reform_in_poverty * spm_unit_weight).sum() / total_spm_weight
+                poverty_pct_change = ((reform_poverty_rate - baseline_poverty_rate) / baseline_poverty_rate * 100) if baseline_poverty_rate > 0 else 0.0
 
-            # Child poverty (persons under 18)
-            age = np.array(sim_baseline.calculate("age", period=year))
-            is_child = age < 18
-            child_weight = person_weight * is_child
-            total_child_weight = child_weight.sum()
+                # Child poverty - use spm_unit_count_children to weight by children
+                spm_unit_children = np.array(sim_baseline.calculate("spm_unit_count_children", period=year))
+                child_weight = spm_unit_weight * spm_unit_children
+                total_child_weight = child_weight.sum()
 
-            if total_child_weight > 0:
-                baseline_child_poverty_rate = (baseline_in_poverty * child_weight).sum() / total_child_weight
-                reform_child_poverty_rate = (reform_in_poverty * child_weight).sum() / total_child_weight
-                child_poverty_pct_change = ((reform_child_poverty_rate - baseline_child_poverty_rate) / baseline_child_poverty_rate * 100) if baseline_child_poverty_rate > 0 else 0.0
+                if total_child_weight > 0:
+                    baseline_child_poverty_rate = (baseline_in_poverty * child_weight).sum() / total_child_weight
+                    reform_child_poverty_rate = (reform_in_poverty * child_weight).sum() / total_child_weight
+                    child_poverty_pct_change = ((reform_child_poverty_rate - baseline_child_poverty_rate) / baseline_child_poverty_rate * 100) if baseline_child_poverty_rate > 0 else 0.0
+                else:
+                    child_poverty_pct_change = 0.0
             else:
+                poverty_pct_change = 0.0
                 child_poverty_pct_change = 0.0
-        else:
+        except Exception as poverty_err:
+            print(f"  Warning: Poverty calculation failed for {district_id}: {poverty_err}")
             poverty_pct_change = 0.0
             child_poverty_pct_change = 0.0
 
