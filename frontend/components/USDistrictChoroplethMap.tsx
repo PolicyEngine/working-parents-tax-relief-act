@@ -200,8 +200,7 @@ export default function USDistrictChoroplethMap({
   // Geographic map uses standard geoAlbersUsa projection
   const projection = mapType === 'hex' ? 'geoMercator' : 'geoAlbersUsa';
   const projectionScale = mapType === 'hex' ? 550 : 1000;
-  const projectionCenter: [number, number] = mapType === 'hex' ? [-98, 38] : [-96, 38];
-  const projectionTranslate: [number, number] = mapType === 'hex' ? [400, 300] : [480, 300];
+  const projectionCenter: [number, number] = [-98, 38];
 
   return (
     <div className="relative">
@@ -234,8 +233,7 @@ export default function USDistrictChoroplethMap({
         projection={projection}
         projectionConfig={{
           scale: projectionScale,
-          center: mapType === 'hex' ? projectionCenter : undefined,
-          translate: mapType === 'hex' ? undefined : projectionTranslate,
+          center: projectionCenter,
         }}
         style={{ width: '100%', height }}
       >
