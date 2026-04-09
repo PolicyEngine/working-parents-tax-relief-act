@@ -136,23 +136,15 @@ function DistrictDetailPanel({
 
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-3">
-        {/* Winners / Losers */}
+        {/* Winners */}
         <div className="bg-gray-50 rounded-lg p-3 text-center">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-            Winners / Losers
+            Winners
           </p>
-          <p className="text-base font-bold">
-            <span className="text-teal-600">
-              {district.winners_share !== undefined
-                ? `${(district.winners_share * 100).toFixed(0)}%`
-                : 'N/A'}
-            </span>
-            <span className="text-gray-400"> / </span>
-            <span className="text-red-600">
-              {district.losers_share !== undefined
-                ? `${(district.losers_share * 100).toFixed(0)}%`
-                : 'N/A'}
-            </span>
+          <p className="text-base font-bold text-teal-600">
+            {district.winners_share !== undefined
+              ? `${(district.winners_share * 100).toFixed(1)}%`
+              : 'N/A'}
           </p>
         </div>
 
