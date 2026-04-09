@@ -63,7 +63,14 @@ def get_all_districts():
     retries=2,
 )
 def calculate_single_district_impact(district_id: str, year: int = YEAR) -> dict:
-    """Calculate impact for a single congressional district using district-specific dataset."""
+    """Calculate impact for a single congressional district using district-specific dataset.
+
+    Returns metrics including:
+    - Average household income change (absolute and relative)
+    - Winners/losers share (% households gaining/losing)
+    - Poverty rate change
+    - Child poverty rate change
+    """
     import numpy as np
     from policyengine_us import Microsimulation
     from policyengine_core.reforms import Reform
@@ -92,20 +99,61 @@ def calculate_single_district_impact(district_id: str, year: int = YEAR) -> dict
             avg_change = (income_change * household_weight).sum() / total_weight
             avg_baseline = (baseline_net_income * household_weight).sum() / total_weight
             rel_change = avg_change / avg_baseline if avg_baseline > 0 else 0.0
+
+            # Winners/losers analysis (using $1 threshold to avoid floating point noise)
+            winners_mask = income_change > 1
+            losers_mask = income_change < -1
+            winners_share = (household_weight * winners_mask).sum() / total_weight
+            losers_share = (household_weight * losers_mask).sum() / total_weight
         else:
             avg_change = 0.0
             rel_change = 0.0
+            winners_share = 0.0
+            losers_share = 0.0
+
+        # Poverty analysis (person-level)
+        person_weight = np.array(sim_baseline.calculate("person_weight", period=year))
+        total_person_weight = person_weight.sum()
+
+        if total_person_weight > 0:
+            # Overall poverty
+            baseline_in_poverty = np.array(sim_baseline.calculate("in_poverty", period=year))
+            reform_in_poverty = np.array(sim_reform.calculate("in_poverty", period=year))
+
+            baseline_poverty_rate = (baseline_in_poverty * person_weight).sum() / total_person_weight
+            reform_poverty_rate = (reform_in_poverty * person_weight).sum() / total_person_weight
+            poverty_pct_change = ((reform_poverty_rate - baseline_poverty_rate) / baseline_poverty_rate * 100) if baseline_poverty_rate > 0 else 0.0
+
+            # Child poverty (persons under 18)
+            age = np.array(sim_baseline.calculate("age", period=year))
+            is_child = age < 18
+            child_weight = person_weight * is_child
+            total_child_weight = child_weight.sum()
+
+            if total_child_weight > 0:
+                baseline_child_poverty_rate = (baseline_in_poverty * child_weight).sum() / total_child_weight
+                reform_child_poverty_rate = (reform_in_poverty * child_weight).sum() / total_child_weight
+                child_poverty_pct_change = ((reform_child_poverty_rate - baseline_child_poverty_rate) / baseline_child_poverty_rate * 100) if baseline_child_poverty_rate > 0 else 0.0
+            else:
+                child_poverty_pct_change = 0.0
+        else:
+            poverty_pct_change = 0.0
+            child_poverty_pct_change = 0.0
 
         state = district_id.split("-")[0]
         result = {
             "district": district_id,
             "average_household_income_change": round(float(avg_change), 2),
             "relative_household_income_change": round(float(rel_change), 6),
+            "winners_share": round(float(winners_share), 4),
+            "losers_share": round(float(losers_share), 4),
+            "poverty_pct_change": round(float(poverty_pct_change), 2),
+            "child_poverty_pct_change": round(float(child_poverty_pct_change), 2),
             "state": state,
             "year": year,
         }
 
-        print(f"  {district_id}: avg=${avg_change:.2f}, rel={rel_change:.4f}")
+        print(f"  {district_id}: avg=${avg_change:.2f}, winners={winners_share:.1%}, poverty={poverty_pct_change:+.1f}%")
         return result
 
     except Exception as e:
