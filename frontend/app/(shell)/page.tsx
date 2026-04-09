@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import ImpactAnalysis from '@/components/ImpactAnalysis';
 import AggregateImpact from '@/components/AggregateImpact';
 import PolicyOverview from '@/components/PolicyOverview';
+import CongressionalDistrictImpact from '@/components/CongressionalDistrictImpact';
 import type { HouseholdRequest } from '@/lib/types';
 import { parseHashParams } from '@/lib/embedding';
 
@@ -28,16 +29,17 @@ const US_STATES = [
 ];
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'policy' | 'impact' | 'aggregate'>('policy');
+  const [activeTab, setActiveTab] = useState<'policy' | 'impact' | 'aggregate' | 'districts'>('policy');
 
   const TAB_CONFIG = [
     { id: 'policy' as const, label: 'Policy overview' },
     { id: 'impact' as const, label: 'Household impact' },
     { id: 'aggregate' as const, label: 'National impact' },
+    { id: 'districts' as const, label: 'Congressional districts' },
   ];
 
   // Simple tab change handler
-  const handleTabChange = useCallback((tab: 'policy' | 'impact' | 'aggregate') => {
+  const handleTabChange = useCallback((tab: 'policy' | 'impact' | 'aggregate' | 'districts') => {
     setActiveTab(tab);
   }, []);
 
@@ -86,8 +88,10 @@ export default function Home() {
             <PolicyOverview />
           ) : activeTab === 'impact' ? (
             <HouseholdImpactTab />
-          ) : (
+          ) : activeTab === 'aggregate' ? (
             <NationalImpactTab />
+          ) : (
+            <CongressionalDistrictImpact />
           )}
         </div>
       </div>
