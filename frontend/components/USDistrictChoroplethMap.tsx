@@ -91,7 +91,7 @@ function DistrictDetailPanel({
   const stateName = STATE_NAMES[stateAbbr] || stateAbbr;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-lg p-5">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-lg p-5 min-h-[280px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-4 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ function DistrictDetailPanel({
 // Empty state when no district is selected
 function SelectDistrictPrompt() {
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+    <div className="flex flex-col items-center justify-center min-h-[280px] p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300">
       <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mb-3">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#319795" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
