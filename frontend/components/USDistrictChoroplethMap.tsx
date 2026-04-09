@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ComposableMap,
   Geographies,
   Geography,
+  ZoomableGroup,
 } from 'react-simple-maps';
-import { scaleLinear } from 'd3-scale';
-
 interface DistrictData {
   district: string;
   average_household_income_change: number;
@@ -21,10 +20,15 @@ interface Props {
   height?: number;
 }
 
-// Diverging color scale: red (negative) -> gray (zero) -> teal (positive)
-const NEGATIVE_COLOR = '#dc2626'; // red-600
-const ZERO_COLOR = '#9ca3af'; // gray-400
-const POSITIVE_COLOR = '#0d9488'; // teal-600
+// PolicyEngine app-v2 diverging color scale: gray (negative) -> light gray (zero) -> teal (positive)
+// From @policyengine/ui-kit design tokens
+const DIVERGING_COLORS = [
+  '#475569', // gray-600 (most negative)
+  '#94A3B8', // gray-400
+  '#E2E8F0', // gray-200 (neutral/zero)
+  '#81E6D9', // teal-200
+  '#319795', // teal-500 (most positive)
+];
 
 const formatCurrency = (value: number) => {
   if (Math.abs(value) >= 1000) {
@@ -50,6 +54,26 @@ export default function USDistrictChoroplethMap({
     district: string;
     value: number;
   } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState<[number, number]>([-96, 38]);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => Math.min(prev * 1.5, 8));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => Math.max(prev / 1.5, 1));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setZoom(1);
+    setCenter([-96, 38]);
+  }, []);
+
+  const handleMoveEnd = useCallback((position: { coordinates: [number, number]; zoom: number }) => {
+    setCenter(position.coordinates);
+    setZoom(position.zoom);
+  }, []);
 
   // Load GeoJSON based on map type
   useEffect(() => {
@@ -84,9 +108,9 @@ export default function USDistrictChoroplethMap({
     return lookup;
   }, [data]);
 
-  // Calculate color scale
-  const colorScale = useMemo(() => {
-    if (data.length === 0) return null;
+  // Calculate color range (min/max centered at zero)
+  const colorRange = useMemo(() => {
+    if (data.length === 0) return { min: 0, max: 0 };
 
     const values = data.map((d) =>
       metric === 'absolute'
@@ -95,17 +119,42 @@ export default function USDistrictChoroplethMap({
     );
 
     const maxAbs = Math.max(...values.map(Math.abs));
-    const domain = [-maxAbs, 0, maxAbs];
-
-    return scaleLinear<string>()
-      .domain(domain)
-      .range([NEGATIVE_COLOR, ZERO_COLOR, POSITIVE_COLOR]);
+    return { min: -maxAbs, max: maxAbs };
   }, [data, metric]);
 
-  // Get color for a district
-  const getColor = (districtId: string) => {
-    if (!colorScale) return ZERO_COLOR;
+  // Interpolate color from the 5-stop diverging scale
+  const interpolateColor = useCallback((value: number, min: number, max: number): string => {
+    if (min >= max) return DIVERGING_COLORS[2]; // neutral
 
+    // Normalize to [0, 1]
+    const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+
+    // Map to position across 4 segments (5 colors)
+    const segments = DIVERGING_COLORS.length - 1;
+    const segPos = t * segments;
+    const segIndex = Math.min(Math.floor(segPos), segments - 1);
+    const segT = segPos - segIndex;
+
+    // Parse hex colors
+    const parseHex = (color: string) => ({
+      r: parseInt(color.slice(1, 3), 16),
+      g: parseInt(color.slice(3, 5), 16),
+      b: parseInt(color.slice(5, 7), 16),
+    });
+
+    const c0 = parseHex(DIVERGING_COLORS[segIndex]);
+    const c1 = parseHex(DIVERGING_COLORS[segIndex + 1]);
+
+    // Interpolate
+    const r = Math.round(c0.r + (c1.r - c0.r) * segT);
+    const g = Math.round(c0.g + (c1.g - c0.g) * segT);
+    const b = Math.round(c0.b + (c1.b - c0.b) * segT);
+
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }, []);
+
+  // Get color for a district
+  const getColor = useCallback((districtId: string) => {
     const districtData = dataLookup.get(districtId);
     if (!districtData) return '#e5e7eb'; // gray-200 for missing data
 
@@ -114,8 +163,8 @@ export default function USDistrictChoroplethMap({
         ? districtData.average_household_income_change
         : districtData.relative_household_income_change;
 
-    return colorScale(value);
-  };
+    return interpolateColor(value, colorRange.min, colorRange.max);
+  }, [dataLookup, metric, interpolateColor, colorRange]);
 
   // Get value for tooltip
   const getValue = (districtId: string) => {
@@ -127,7 +176,7 @@ export default function USDistrictChoroplethMap({
       : districtData.relative_household_income_change;
   };
 
-  if (!geoData || !colorScale) {
+  if (!geoData || data.length === 0) {
     return (
       <div
         className="flex items-center justify-center bg-gray-50 rounded-lg"
@@ -138,7 +187,7 @@ export default function USDistrictChoroplethMap({
     );
   }
 
-  // Calculate legend values
+  // Calculate legend values (actual min/max, not symmetrical)
   const values = data.map((d) =>
     metric === 'absolute'
       ? d.average_household_income_change
@@ -147,49 +196,91 @@ export default function USDistrictChoroplethMap({
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
 
+  // Hex map uses geoMercator to avoid clipping issues with geoAlbersUsa
+  // Geographic map uses standard geoAlbersUsa projection
+  const projection = mapType === 'hex' ? 'geoMercator' : 'geoAlbersUsa';
+  const projectionScale = mapType === 'hex' ? 550 : 1000;
+  const projectionCenter: [number, number] = mapType === 'hex' ? [-98, 38] : [-96, 38];
+  const projectionTranslate: [number, number] = mapType === 'hex' ? [400, 300] : [480, 300];
+
   return (
     <div className="relative">
+      {/* Zoom controls */}
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+        <button
+          onClick={handleZoomIn}
+          className="w-8 h-8 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 flex items-center justify-center text-gray-700 font-bold"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="w-8 h-8 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 flex items-center justify-center text-gray-700 font-bold"
+          title="Zoom out"
+        >
+          −
+        </button>
+        <button
+          onClick={handleReset}
+          className="w-8 h-8 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 flex items-center justify-center text-gray-700 text-xs"
+          title="Reset view"
+        >
+          ↺
+        </button>
+      </div>
+
       <ComposableMap
-        projection="geoAlbersUsa"
+        projection={projection}
         projectionConfig={{
-          scale: mapType === 'hex' ? 900 : 1000,
+          scale: projectionScale,
+          center: mapType === 'hex' ? projectionCenter : undefined,
+          translate: mapType === 'hex' ? undefined : projectionTranslate,
         }}
         style={{ width: '100%', height }}
       >
-        <Geographies geography={geoData}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
-              const districtId = geo.properties.DISTRICT_ID;
-              const value = getValue(districtId);
+        <ZoomableGroup
+          zoom={zoom}
+          center={center}
+          onMoveEnd={handleMoveEnd}
+          minZoom={1}
+          maxZoom={8}
+        >
+          <Geographies geography={geoData}>
+            {({ geographies }) =>
+              geographies.map((geo) => {
+                const districtId = geo.properties.DISTRICT_ID;
+                const value = getValue(districtId);
 
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill={getColor(districtId)}
-                  stroke="#fff"
-                  strokeWidth={0.5}
-                  style={{
-                    default: { outline: 'none' },
-                    hover: { outline: 'none', opacity: 0.8 },
-                    pressed: { outline: 'none' },
-                  }}
-                  onMouseEnter={(evt) => {
-                    if (value !== null) {
-                      setTooltip({
-                        x: evt.clientX,
-                        y: evt.clientY,
-                        district: districtId,
-                        value,
-                      });
-                    }
-                  }}
-                  onMouseLeave={() => setTooltip(null)}
-                />
-              );
-            })
-          }
-        </Geographies>
+                return (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill={getColor(districtId)}
+                    stroke="#fff"
+                    strokeWidth={0.5}
+                    style={{
+                      default: { outline: 'none' },
+                      hover: { outline: 'none', opacity: 0.8 },
+                      pressed: { outline: 'none' },
+                    }}
+                    onMouseEnter={(evt) => {
+                      if (value !== null) {
+                        setTooltip({
+                          x: evt.clientX,
+                          y: evt.clientY,
+                          district: districtId,
+                          value,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                );
+              })
+            }
+          </Geographies>
+        </ZoomableGroup>
       </ComposableMap>
 
       {/* Tooltip */}
@@ -218,7 +309,7 @@ export default function USDistrictChoroplethMap({
         <div
           className="h-4 w-48 rounded"
           style={{
-            background: `linear-gradient(to right, ${NEGATIVE_COLOR}, ${ZERO_COLOR}, ${POSITIVE_COLOR})`,
+            background: `linear-gradient(to right, ${DIVERGING_COLORS.join(', ')})`,
           }}
         />
         <span className="text-sm text-gray-600">
