@@ -204,12 +204,16 @@ def calculate_year(year: int) -> dict:
         else 0.0
     )
 
-    # ===== INCOME BRACKET BREAKDOWN =====
-    print(f"  Calculating income brackets...")
-    agi = sim_reform.calculate("adjusted_gross_income", period=year, map_to="household")
-    agi_arr = np.array(agi)
-    change_arr = np.array(income_change)
-    affected_mask = np.abs(change_arr) > 1
+    # ===== INCOME BRACKET BREAKDOWN (at tax unit level) =====
+    print(f"  Calculating income brackets (tax unit level)...")
+    # Use tax unit level for income brackets since EITC is filed at tax unit level
+    # Calculate income change as the negative of income tax change (tax reduction = income gain)
+    tu_baseline_tax = np.array(sim_baseline.calculate("income_tax", period=year))
+    tu_reform_tax = np.array(sim_reform.calculate("income_tax", period=year))
+    tu_income_change = tu_baseline_tax - tu_reform_tax  # Positive when tax is reduced
+    tu_weight = np.array(sim_baseline.calculate("tax_unit_weight", period=year))
+    tu_agi = np.array(sim_baseline.calculate("adjusted_gross_income", period=year))
+    tu_affected_mask = np.abs(tu_income_change) > 1
 
     income_brackets = [
         (0, 25_000, "$0 - $25k"),
@@ -217,17 +221,16 @@ def calculate_year(year: int) -> dict:
         (50_000, 75_000, "$50k - $75k"),
         (75_000, 100_000, "$75k - $100k"),
         (100_000, 150_000, "$100k - $150k"),
-        (150_000, 200_000, "$150k - $200k"),
-        (200_000, float("inf"), "$200k+"),
+        (150_000, float("inf"), "$150k+"),
     ]
 
     by_income_bracket = []
     for min_inc, max_inc, label in income_brackets:
-        mask = (agi_arr >= min_inc) & (agi_arr < max_inc) & affected_mask
-        bracket_affected = float(weight_arr[mask].sum())
+        mask = (tu_agi >= min_inc) & (tu_agi < max_inc) & tu_affected_mask
+        bracket_affected = float(tu_weight[mask].sum())
         if bracket_affected > 0:
-            bracket_cost = float((change_arr[mask] * weight_arr[mask]).sum())
-            bracket_avg = float(np.average(change_arr[mask], weights=weight_arr[mask]))
+            bracket_cost = float((tu_income_change[mask] * tu_weight[mask]).sum())
+            bracket_avg = float(np.average(tu_income_change[mask], weights=tu_weight[mask]))
         else:
             bracket_cost = 0.0
             bracket_avg = 0.0

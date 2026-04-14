@@ -224,8 +224,8 @@ export default function AggregateImpact({ triggered }: Props) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-300">
-                    <th className="text-left px-4 py-3 font-medium text-gray-900">Income bracket</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-900">Affected households</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-900">AGI bracket</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-900">Affected tax units</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-900">Total impact</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-900">Average impact</th>
                   </tr>
@@ -248,6 +248,9 @@ export default function AggregateImpact({ triggered }: Props) {
                 </tbody>
               </table>
             </div>
+            <p className="text-xs text-gray-500 mt-3 italic">
+              Income brackets are based on Adjusted Gross Income (AGI) at the tax unit level. A tax unit is the unit that files a tax return (single filer or married couple filing jointly). The EITC is calculated and filed at the tax unit level.
+            </p>
           </div>
         </div>
       )}
@@ -331,6 +334,9 @@ export default function AggregateImpact({ triggered }: Props) {
                 </BarChart>
               </ResponsiveContainer>
             <ChartWatermark />
+            <p className="text-xs text-gray-500 mt-3 italic">
+              Distributional impacts are calculated at the household level. A household may contain multiple tax units (e.g., an adult child living with parents who files separately). This is why some households in higher income deciles may see benefits even though the enhanced EITC phases out at lower AGI levels — one tax unit within the household may qualify while others do not.
+            </p>
           </div>
         );
       })()}
@@ -407,6 +413,9 @@ export default function AggregateImpact({ triggered }: Props) {
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-3 italic">
+                  Winners and losers are calculated at the household level. A household may contain multiple tax units (e.g., an adult child living with parents who files separately). Some households in higher income deciles may see benefits because one tax unit within the household qualifies for the enhanced EITC while others do not.
+                </p>
               </div>
             </div>
           </div>
