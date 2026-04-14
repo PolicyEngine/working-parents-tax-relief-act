@@ -144,3 +144,41 @@ export function useTenYearTotal(enabled: boolean) {
     gcTime: 10 * 60 * 1000,
   });
 }
+
+export function useTenYearFederalTotal(enabled: boolean) {
+  return useQuery<number>({
+    queryKey: ["tenYearFederalTotal"],
+    queryFn: async () => {
+      const rows = await fetchCSV("metrics.csv");
+      const years = Array.from({ length: 10 }, (_, i) => 2026 + i);
+      return years.reduce((sum, year) => {
+        const row = rows.find(
+          (r) => r.year === year && r.metric === "federal_tax_revenue_impact"
+        );
+        return sum + (row ? (row.value as number) : 0);
+      }, 0);
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useTenYearStateTotal(enabled: boolean) {
+  return useQuery<number>({
+    queryKey: ["tenYearStateTotal"],
+    queryFn: async () => {
+      const rows = await fetchCSV("metrics.csv");
+      const years = Array.from({ length: 10 }, (_, i) => 2026 + i);
+      return years.reduce((sum, year) => {
+        const row = rows.find(
+          (r) => r.year === year && r.metric === "state_tax_revenue_impact"
+        );
+        return sum + (row ? (row.value as number) : 0);
+      }, 0);
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}

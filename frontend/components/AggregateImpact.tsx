@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAggregateImpact, useTenYearTotal } from '@/hooks/useAggregateImpact';
+import { useAggregateImpact, useTenYearTotal, useTenYearFederalTotal, useTenYearStateTotal } from '@/hooks/useAggregateImpact';
 import {
   BarChart,
   Bar,
@@ -69,6 +69,8 @@ export default function AggregateImpact({ triggered }: Props) {
   const [selectedYear, setSelectedYear] = useState(2026);
   const { data, isLoading, error } = useAggregateImpact(triggered, selectedYear);
   const { data: tenYearTotal } = useTenYearTotal(triggered);
+  const { data: tenYearFederal } = useTenYearFederalTotal(triggered);
+  const { data: tenYearState } = useTenYearStateTotal(triggered);
   const [activeSection, setActiveSection] = useState<'fiscal' | 'distributional' | 'winners' | 'poverty'>('fiscal');
   const [distMode, setDistMode] = useState<'relative' | 'absolute'>('relative');
 
@@ -167,55 +169,81 @@ export default function AggregateImpact({ triggered }: Props) {
       {/* ===== FISCAL IMPACT ===== */}
       {activeSection === 'fiscal' && (
         <div className="space-y-6">
-          {/* Budget headline */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`rounded-lg p-6 border ${
-              data.budget.budgetary_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
-            }`}>
-              <p className="text-sm text-gray-700 mb-2">Total budgetary impact ({selectedYear})</p>
-              <p className={`text-3xl font-bold ${
-                data.budget.budgetary_impact >= 0 ? 'text-green-600' : 'text-red-600'
+          {/* Selected year impact - 3 cards */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Budgetary impact ({selectedYear})</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={`rounded-lg p-5 border ${
+                data.budget.budgetary_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
               }`}>
-                {formatBillions(data.budget.budgetary_impact)}
-              </p>
-            </div>
-            {tenYearTotal != null && (
-              <div className={`rounded-lg p-6 border ${
-                tenYearTotal >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
-              }`}>
-                <p className="text-sm text-gray-700 mb-2">10-year budget window (2026-2035)</p>
-                <p className={`text-3xl font-bold ${
-                  tenYearTotal >= 0 ? 'text-green-600' : 'text-red-600'
+                <p className="text-sm text-gray-700 mb-2">Total</p>
+                <p className={`text-2xl font-bold ${
+                  data.budget.budgetary_impact >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {formatBillions(tenYearTotal)}
+                  {formatBillions(data.budget.budgetary_impact)}
                 </p>
               </div>
-            )}
+              <div className={`rounded-lg p-5 border ${
+                data.budget.federal_tax_revenue_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+              }`}>
+                <p className="text-sm text-gray-700 mb-2">Federal</p>
+                <p className={`text-2xl font-bold ${
+                  data.budget.federal_tax_revenue_impact >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {formatBillions(data.budget.federal_tax_revenue_impact)}
+                </p>
+              </div>
+              <div className={`rounded-lg p-5 border ${
+                data.budget.state_tax_revenue_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+              }`}>
+                <p className="text-sm text-gray-700 mb-2">State</p>
+                <p className={`text-2xl font-bold ${
+                  data.budget.state_tax_revenue_impact >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {formatBillions(data.budget.state_tax_revenue_impact)}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Federal vs State breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`rounded-lg p-4 border ${
-              data.budget.federal_tax_revenue_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
-            }`}>
-              <p className="text-sm text-gray-700 mb-1">Federal tax revenue impact</p>
-              <p className={`text-2xl font-bold ${
-                data.budget.federal_tax_revenue_impact >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {formatBillions(data.budget.federal_tax_revenue_impact)}
-              </p>
+          {/* 10-year window - 3 cards */}
+          {tenYearTotal != null && tenYearFederal != null && tenYearState != null && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">10-year budget window (2026-2035)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`rounded-lg p-5 border ${
+                  tenYearTotal >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+                }`}>
+                  <p className="text-sm text-gray-700 mb-2">Total</p>
+                  <p className={`text-2xl font-bold ${
+                    tenYearTotal >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatBillions(tenYearTotal)}
+                  </p>
+                </div>
+                <div className={`rounded-lg p-5 border ${
+                  tenYearFederal >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+                }`}>
+                  <p className="text-sm text-gray-700 mb-2">Federal</p>
+                  <p className={`text-2xl font-bold ${
+                    tenYearFederal >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatBillions(tenYearFederal)}
+                  </p>
+                </div>
+                <div className={`rounded-lg p-5 border ${
+                  tenYearState >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
+                }`}>
+                  <p className="text-sm text-gray-700 mb-2">State</p>
+                  <p className={`text-2xl font-bold ${
+                    tenYearState >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatBillions(tenYearState)}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className={`rounded-lg p-4 border ${
-              data.budget.state_tax_revenue_impact >= 0 ? 'bg-green-50 border-success' : 'bg-red-50 border-red-300'
-            }`}>
-              <p className="text-sm text-gray-700 mb-1">State tax revenue impact</p>
-              <p className={`text-2xl font-bold ${
-                data.budget.state_tax_revenue_impact >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {formatBillions(data.budget.state_tax_revenue_impact)}
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* Income bracket table */}
           <div>
@@ -224,7 +252,7 @@ export default function AggregateImpact({ triggered }: Props) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-300">
-                    <th className="text-left px-4 py-3 font-medium text-gray-900">AGI bracket</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-900">Income bracket</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-900">Affected tax units</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-900">Total impact</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-900">Average impact</th>
