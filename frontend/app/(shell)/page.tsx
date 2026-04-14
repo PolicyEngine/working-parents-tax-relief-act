@@ -104,13 +104,13 @@ function HouseholdImpactTab() {
   // Initialize state from hash parameters if present
   const getInitialValues = () => {
     if (typeof window === 'undefined') {
-      return { income: 25000, age: 35, state: 'CA', married: false, dependents: [2] };
+      return { income: 25000, age: 35, state: 'MI', married: false, dependents: [2] };
     }
     const params = parseHashParams(window.location.hash);
     return {
       income: params.income ?? 25000,
       age: params.age ?? 35,
-      state: params.state ?? 'CA',
+      state: params.state ?? 'MI',
       married: params.married ?? false,
       dependents: params.dependents ?? [2],
     };
