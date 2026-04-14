@@ -222,16 +222,7 @@ def calculate_year(year: int) -> dict:
     tu_tax_exempt_interest = np.array(sim_baseline.calculate("tax_exempt_interest_income", period=year, map_to="tax_unit"))
     tu_employer_payroll_tax = np.array(sim_baseline.calculate("employer_payroll_tax", period=year, map_to="tax_unit"))
     tu_workers_comp = np.array(sim_baseline.calculate("workers_compensation", period=year, map_to="tax_unit"))
-    # Nontaxable SS: total SS (aggregated to tax unit) minus taxable portion
-    # taxable_social_security is natively at tax_unit level, so we get total SS at same level
-    tu_taxable_ss = np.array(sim_baseline.calculate("taxable_social_security", period=year))
-    tu_total_ss = np.array(sim_baseline.calculate("social_security", period=year, map_to="tax_unit"))
-    # Ensure arrays match by padding if needed (microdata edge case)
-    if len(tu_total_ss) != len(tu_taxable_ss):
-        # Use zeros for nontaxable SS if shapes don't match
-        tu_nontaxable_ss = np.zeros_like(tu_agi)
-    else:
-        tu_nontaxable_ss = tu_total_ss - tu_taxable_ss
+    tu_tax_exempt_ss = np.array(sim_baseline.calculate("tax_exempt_social_security", period=year))
     tu_foreign_exclusion = np.array(sim_baseline.calculate("foreign_earned_income_exclusion", period=year, map_to="tax_unit"))
 
     tu_expanded_income = (
@@ -239,7 +230,7 @@ def calculate_year(year: int) -> dict:
         + tu_tax_exempt_interest
         + tu_employer_payroll_tax
         + tu_workers_comp
-        + np.maximum(tu_nontaxable_ss, 0)  # Ensure non-negative
+        + tu_tax_exempt_ss
         + tu_foreign_exclusion
     )
     tu_affected_mask = np.abs(tu_income_change) > 1
