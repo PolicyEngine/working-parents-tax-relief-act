@@ -215,7 +215,9 @@ def calculate_year(year: int) -> dict:
 
     # Calculate JCT-style expanded income for bracket assignment
     # Expanded income = AGI + tax-exempt interest + employer FICA + workers' comp
-    #                   + nontaxable Social Security + Medicare benefits + foreign exclusion
+    #                   + nontaxable Social Security + foreign exclusion
+    # NOTE: Medicare cost excluded - PolicyEngine's medicare_cost allocates total program
+    # spending to all tax units, not just actual Medicare recipient benefits
     tu_agi = np.array(sim_baseline.calculate("adjusted_gross_income", period=year))
     tu_tax_exempt_interest = np.array(sim_baseline.calculate("tax_exempt_interest_income", period=year, map_to="tax_unit"))
     tu_employer_payroll_tax = np.array(sim_baseline.calculate("employer_payroll_tax", period=year, map_to="tax_unit"))
@@ -230,7 +232,6 @@ def calculate_year(year: int) -> dict:
         tu_nontaxable_ss = np.zeros_like(tu_agi)
     else:
         tu_nontaxable_ss = tu_total_ss - tu_taxable_ss
-    tu_medicare_cost = np.array(sim_baseline.calculate("medicare_cost", period=year, map_to="tax_unit"))
     tu_foreign_exclusion = np.array(sim_baseline.calculate("foreign_earned_income_exclusion", period=year, map_to="tax_unit"))
 
     tu_expanded_income = (
@@ -239,7 +240,6 @@ def calculate_year(year: int) -> dict:
         + tu_employer_payroll_tax
         + tu_workers_comp
         + np.maximum(tu_nontaxable_ss, 0)  # Ensure non-negative
-        + tu_medicare_cost
         + tu_foreign_exclusion
     )
     tu_affected_mask = np.abs(tu_income_change) > 1

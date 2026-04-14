@@ -249,7 +249,7 @@ export default function AggregateImpact({ triggered }: Props) {
               </table>
             </div>
             <p className="text-xs text-gray-500 mt-3 italic">
-              Income brackets use an expanded income measure at the tax unit level, following JCT methodology. Expanded income includes AGI plus tax-exempt interest, employer payroll taxes, workers&apos; compensation, nontaxable Social Security benefits, Medicare benefit value, and foreign earned income exclusion. A tax unit is the unit that files a tax return (single filer or married couple filing jointly).
+              Income brackets use an expanded income measure at the tax unit level, following JCT methodology. Expanded income includes AGI plus tax-exempt interest, employer payroll taxes, workers&apos; compensation, nontaxable Social Security benefits, and foreign earned income exclusion. A tax unit is the unit that files a tax return (single filer or married couple filing jointly).
             </p>
           </div>
         </div>
