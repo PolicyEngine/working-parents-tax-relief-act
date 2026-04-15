@@ -228,7 +228,7 @@ export default function PolicyOverview() {
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Scenario</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Baseline maximum</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Reform maximum</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-900">Increase</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-900">Benefit increase</th>
               </tr>
             </thead>
             <tbody>
