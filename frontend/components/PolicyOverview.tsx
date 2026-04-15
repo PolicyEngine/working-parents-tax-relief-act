@@ -228,7 +228,7 @@ export default function PolicyOverview() {
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Scenario</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Baseline maximum</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Reform maximum</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-900">Multiplier</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-900">Increase</th>
               </tr>
             </thead>
             <tbody>
@@ -236,19 +236,19 @@ export default function PolicyOverview() {
                 <td className="py-3 px-4 text-gray-700">One young child</td>
                 <td className="py-3 px-4 text-right text-gray-700">$4,427</td>
                 <td className="py-3 px-4 text-right text-gray-700">$9,927</td>
-                <td className="py-3 px-4 text-right font-semibold text-primary-600">2.24x</td>
+                <td className="py-3 px-4 text-right font-semibold text-primary-600">$5,500</td>
               </tr>
               <tr className="border-b border-gray-100">
                 <td className="py-3 px-4 text-gray-700">Two young children</td>
                 <td className="py-3 px-4 text-right text-gray-700">$7,316</td>
                 <td className="py-3 px-4 text-right text-gray-700">$18,316</td>
-                <td className="py-3 px-4 text-right font-semibold text-primary-600">2.50x</td>
+                <td className="py-3 px-4 text-right font-semibold text-primary-600">$11,000</td>
               </tr>
               <tr className="border-b border-gray-100">
                 <td className="py-3 px-4 text-gray-700">Three young children</td>
                 <td className="py-3 px-4 text-right text-gray-700">$8,231</td>
                 <td className="py-3 px-4 text-right text-gray-700">$24,731</td>
-                <td className="py-3 px-4 text-right font-semibold text-primary-600">3.00x</td>
+                <td className="py-3 px-4 text-right font-semibold text-primary-600">$16,500</td>
               </tr>
             </tbody>
           </table>
