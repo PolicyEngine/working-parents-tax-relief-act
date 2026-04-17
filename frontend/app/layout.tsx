@@ -4,7 +4,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/Providers';
 
-const GA_ID = 'G-91M4529HE7';
+const GA_ID = 'G-2YHG89FY0N';
 const TOOL_NAME = 'working-parents-tax-relief-act';
 
 const inter = Inter({
