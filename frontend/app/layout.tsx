@@ -4,7 +4,8 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/Providers';
 
-const GA_ID = 'G-2YHG89FY0N';
+const GA_ID = 'G-91M4529HE7';
+const TOOL_NAME = 'working-parents-tax-relief-act';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -66,7 +67,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${GA_ID}');
+            gtag('config', '${GA_ID}', { tool_name: '${TOOL_NAME}' });
           `}
         </Script>
       </head>
