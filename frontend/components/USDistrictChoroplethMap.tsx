@@ -112,6 +112,7 @@ function DistrictDetailPanel({
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 p-1"
           title="Close"
+          aria-label="Close district details"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -391,6 +392,7 @@ export default function USDistrictChoroplethMap({
             onClick={handleZoomIn}
             className="w-8 h-8 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 flex items-center justify-center text-gray-700 font-bold"
             title="Zoom in"
+            aria-label="Zoom in on map"
           >
             +
           </button>
@@ -398,6 +400,7 @@ export default function USDistrictChoroplethMap({
             onClick={handleZoomOut}
             className="w-8 h-8 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 flex items-center justify-center text-gray-700 font-bold"
             title="Zoom out"
+            aria-label="Zoom out on map"
           >
             −
           </button>
@@ -405,6 +408,7 @@ export default function USDistrictChoroplethMap({
             onClick={handleReset}
             className="w-8 h-8 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 flex items-center justify-center text-gray-700 text-xs"
             title="Reset view"
+            aria-label="Reset map view"
           >
             ↺
           </button>

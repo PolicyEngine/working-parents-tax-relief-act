@@ -14,9 +14,13 @@ const inter = Inter({
 });
 
 const SITE_URL = 'https://policyengine.org/us/working-parents-tax-relief-act';
+const OG_IMAGE = 'https://policyengine.org/assets/logos/policyengine/og-logo.png';
 
 export const metadata: Metadata = {
-  title: 'Working Parents Tax Relief Act Calculator',
+  title: {
+    default: 'Working Parents Tax Relief Act Calculator | PolicyEngine',
+    template: '%s | PolicyEngine',
+  },
   description:
     'Calculate your personal and national tax impact under the Working Parents Tax Relief Act. See how Rep. McDonald Rivet\'s proposed EITC enhancement for parents of young children affects your household.',
   metadataBase: new URL(SITE_URL),
@@ -24,22 +28,38 @@ export const metadata: Metadata = {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: 'Working Parents Tax Relief Act Calculator',
+    title: 'Working Parents Tax Relief Act Calculator | PolicyEngine',
     description:
       'Calculate your personal and national tax impact under the Working Parents Tax Relief Act. See how the proposed EITC enhancement for parents of young children affects your household.',
     url: SITE_URL,
     siteName: 'PolicyEngine',
     type: 'website',
     locale: 'en_US',
+    images: [
+      {
+        url: OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: 'PolicyEngine - Working Parents Tax Relief Act Calculator',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Working Parents Tax Relief Act Calculator',
+    site: '@ThePolicyEngine',
+    creator: '@ThePolicyEngine',
+    title: 'Working Parents Tax Relief Act Calculator | PolicyEngine',
     description:
       'Calculate your personal and national tax impact under the Working Parents Tax Relief Act.',
+    images: [
+      {
+        url: OG_IMAGE,
+        alt: 'PolicyEngine - Working Parents Tax Relief Act Calculator',
+      },
+    ],
   },
   other: {
-    'theme-color': '#2C7A7B', // CSS var not supported in meta tags, matches --theme-color
+    'theme-color': '#2C7A7B',
   },
   icons: {
     icon: '/favicon.svg',
@@ -47,6 +67,55 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  keywords: [
+    'Working Parents Tax Relief Act',
+    'EITC calculator',
+    'Earned Income Tax Credit',
+    'tax calculator',
+    'PolicyEngine',
+    'EITC enhancement',
+    'parents tax credit',
+    'child tax benefit',
+    'Rep. McDonald Rivet',
+  ],
+};
+
+// JSON-LD structured data for rich search results
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Working Parents Tax Relief Act Calculator',
+  description:
+    'Calculate your personal and national tax impact under the Working Parents Tax Relief Act. See how Rep. McDonald Rivet\'s proposed EITC enhancement for parents of young children affects your household.',
+  url: SITE_URL,
+  applicationCategory: 'FinanceApplication',
+  operatingSystem: 'All',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  creator: {
+    '@type': 'Organization',
+    name: 'PolicyEngine',
+    url: 'https://policyengine.org',
+    logo: 'https://policyengine.org/assets/logos/policyengine/og-logo.png',
+    sameAs: [
+      'https://twitter.com/ThePolicyEngine',
+      'https://www.facebook.com/PolicyEngine',
+      'https://www.linkedin.com/company/thepolicyengine',
+      'https://github.com/PolicyEngine',
+      'https://www.youtube.com/@policyengine',
+      'https://www.instagram.com/PolicyEngine/',
+    ],
   },
 };
 
@@ -58,6 +127,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
           strategy="afterInteractive"
@@ -116,6 +189,13 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
+        <noscript>
+          <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
+            <h1>Working Parents Tax Relief Act Calculator</h1>
+            <p>This calculator requires JavaScript to run. Please enable JavaScript in your browser settings to use this tool.</p>
+            <p>Visit <a href="https://policyengine.org">PolicyEngine</a> for more information.</p>
+          </div>
+        </noscript>
         <Providers>
           {children}
         </Providers>

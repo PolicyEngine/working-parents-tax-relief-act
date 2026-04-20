@@ -45,8 +45,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-primary-500 text-white py-8 px-4 shadow-md">
+      {/* Hero section */}
+      <section className="bg-primary-500 text-white py-8 px-4 shadow-md" aria-label="Page introduction">
         <div className="max-w-5xl mx-auto">
           <h1 className="text-4xl font-bold mb-2">
             Working Parents Tax Relief Act Calculator
@@ -55,33 +55,38 @@ export default function Home() {
             Estimate the impact of Rep. McDonald Rivet&apos;s proposed EITC enhancement for parents of young children
           </p>
         </div>
-      </div>
+      </section>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Tabs */}
-        <div className="flex space-x-1 mb-4" role="tablist">
-          {TAB_CONFIG.map((tab) => (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              aria-controls={`tabpanel-${tab.id}`}
-              onClick={() => handleTabChange(tab.id)}
-              className={`px-6 py-3 rounded-t-lg font-semibold transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-white text-primary-600 border-t-4 border-primary-500'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <nav aria-label="Calculator sections">
+          <div className="flex space-x-1 mb-4" role="tablist" aria-label="Calculator tabs">
+            {TAB_CONFIG.map((tab) => (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
+                id={`tab-${tab.id}`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
+                onClick={() => handleTabChange(tab.id)}
+                className={`px-6 py-3 rounded-t-lg font-semibold transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-white text-primary-600 border-t-4 border-primary-500'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
         {/* Tab content */}
-        <div
+        <section
           role="tabpanel"
           id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
           className="bg-white rounded-lg shadow-md p-6"
         >
           {activeTab === 'policy' ? (
@@ -93,7 +98,7 @@ export default function Home() {
           ) : (
             <CongressionalDistrictImpact />
           )}
-        </div>
+        </section>
       </div>
     </main>
   );
