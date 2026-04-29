@@ -1,1 +1,10 @@
-{"framework": "nextjs"}
+{
+  "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/us/working-parents-tax-relief-act",
+      "permanent": false
+    }
+  ]
+}
