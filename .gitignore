@@ -1,1 +1,29 @@
 .vercel
+.env
+.env.local
+.env*.local
+.DS_Store
+*.log
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+coverage/
+.modal/
+
+# Explicit frontend paths (belt-and-suspenders for IDEs that don't
+# walk nested .gitignore files into frontend/.gitignore).
+frontend/node_modules/
+frontend/.next/
+frontend/.vercel/
+frontend/.env.local
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+frontend/tsconfig.check.tsbuildinfo
