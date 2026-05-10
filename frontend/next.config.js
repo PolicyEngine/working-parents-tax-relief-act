@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path');
 
 // Use empty string for local dev (NEXT_PUBLIC_BASE_PATH=""), otherwise default to production path

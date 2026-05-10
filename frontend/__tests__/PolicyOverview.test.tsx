@@ -28,15 +28,16 @@ describe('PolicyOverview', () => {
 
   it('displays the EITC parameters table', () => {
     render(<PolicyOverview />);
-    expect(screen.getByText('EITC parameter changes for parents of young children')).toBeInTheDocument();
+    expect(screen.getByText('EITC parameter changes for parents of young children (2026)')).toBeInTheDocument();
     expect(screen.getByText('One young child')).toBeInTheDocument();
     expect(screen.getByText('Two young children')).toBeInTheDocument();
     expect(screen.getByText('Three young children')).toBeInTheDocument();
   });
 
-  it('shows sources links', () => {
+  it('shows the EITC comparison chart labels', () => {
     render(<PolicyOverview />);
-    expect(screen.getByText('policyengine-us PR #7914')).toBeInTheDocument();
-    expect(screen.getByText('IRC Section 32')).toBeInTheDocument();
+    expect(screen.getByText('EITC by income (2026)')).toBeInTheDocument();
+    expect(screen.getByText('Comparison of baseline vs. reform EITC by employment income')).toBeInTheDocument();
+    expect(screen.getByText('1 young child')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,9 @@
 'use client';
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath =
+  process.env.NEXT_PUBLIC_BASE_PATH !== undefined
+    ? process.env.NEXT_PUBLIC_BASE_PATH
+    : '/us/working-parents-tax-relief-act';
 
 /**
  * PolicyEngine logo watermark for Recharts charts.
