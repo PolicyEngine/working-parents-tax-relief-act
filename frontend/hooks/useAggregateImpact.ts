@@ -2,6 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import parseCSV from "@/lib/parseCSV";
 import { AggregateImpactResponse, IntraDecileAll, IntraDecileDeciles } from "@/lib/types";
 
+/** Canonical low-to-high order for the income-bracket table. The
+ *  underlying CSV from modal_pipeline can return brackets in any
+ *  order, so the hook sorts before handing them to the table. */
+const BRACKET_ORDER = [
+  "$0 - $25k",
+  "$25k - $50k",
+  "$50k - $75k",
+  "$75k - $100k",
+  "$100k - $150k",
+  "$150k - $200k",
+  "$200k+",
+];
+
 async function fetchCSV(filename: string): Promise<Record<string, string | number>[]> {
   // Use same default as next.config.js
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH !== undefined
@@ -103,12 +116,21 @@ function buildAggregateResponse(year: number): Promise<AggregateImpactResponse> 
       deep_child_poverty_reform_rate: m.deep_child_poverty_reform_rate,
       deep_child_poverty_rate_change: m.deep_child_poverty_rate_change,
       deep_child_poverty_percent_change: m.deep_child_poverty_percent_change,
-      by_income_bracket: ib.map((r) => ({
-        bracket: r.bracket as string,
-        beneficiaries: r.beneficiaries as number,
-        total_cost: r.total_cost as number,
-        avg_benefit: r.avg_benefit as number,
-      })),
+      by_income_bracket: ib
+        .map((r) => ({
+          bracket: r.bracket as string,
+          beneficiaries: r.beneficiaries as number,
+          total_cost: r.total_cost as number,
+          avg_benefit: r.avg_benefit as number,
+        }))
+        .sort((a, b) => {
+          const order = BRACKET_ORDER.indexOf(a.bracket);
+          const orderB = BRACKET_ORDER.indexOf(b.bracket);
+          return (
+            (order === -1 ? Number.MAX_SAFE_INTEGER : order) -
+            (orderB === -1 ? Number.MAX_SAFE_INTEGER : orderB)
+          );
+        }),
     };
   });
 }
