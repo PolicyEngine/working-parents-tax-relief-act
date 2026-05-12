@@ -170,7 +170,10 @@ def _append_and_save(new_rows: list[dict], path: str, year: int) -> None:
     _save_csv(df_combined, path)
 
 
-def generate_all_data(output_dir: str = None) -> dict[str, pd.DataFrame]:
+def generate_all_data(
+    output_dir: str = None,
+    fresh: bool = False,
+) -> dict[str, pd.DataFrame]:
     """Generate all dashboard data as CSVs for all years.
 
     Saves incrementally after each year to prevent memory issues.
@@ -186,7 +189,7 @@ def generate_all_data(output_dir: str = None) -> dict[str, pd.DataFrame]:
     }
 
     # Check which years are already computed
-    existing_metrics = _load_existing_csv(paths["metrics"])
+    existing_metrics = pd.DataFrame() if fresh else _load_existing_csv(paths["metrics"])
     completed_years = set()
     if "year" in existing_metrics.columns:
         completed_years = set(existing_metrics["year"].unique())
@@ -215,4 +218,4 @@ def generate_all_data(output_dir: str = None) -> dict[str, pd.DataFrame]:
 
 
 if __name__ == "__main__":
-    generate_all_data()
+    generate_all_data(fresh="--fresh" in sys.argv)
