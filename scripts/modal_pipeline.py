@@ -22,7 +22,7 @@ app = modal.App("wptra-pipeline")
 # Image with policyengine.py and US dependencies
 # Using a large memory container for microsimulation
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "policyengine[us]==4.4.3",
+    "policyengine[us]==4.4.4",
     "numpy>=1.24.0",
     "pandas>=2.0.0",
 )
@@ -153,31 +153,43 @@ def calculate_year(year: int) -> dict:
             decile_average[str(d)] = 0.0
             decile_relative[str(d)] = 0.0
 
-    # Intra-decile shares are person-weighted via household_count_people.
-    people_per_hh = _calc(
-        sim_baseline, "household_count_people", map_to="household"
+    person_baseline_net_income = _calc(
+        sim_baseline, "household_net_income", map_to="person"
     )
+    person_reform_net_income = _calc(
+        sim_reform, "household_net_income", map_to="person"
+    )
+    person_income_change = person_reform_net_income - person_baseline_net_income
+    person_decile = _calc(
+        sim_baseline, "household_income_decile", map_to="person"
+    )
+
     intra_decile_deciles = {label: [] for label in intra_labels}
     for d in range(1, 11):
-        dmask = decile == d
-        d_total_people = float(people_per_hh[dmask].sum())
+        dmask = person_decile == d
 
         for lower, upper, label in zip(
             intra_bounds[:-1], intra_bounds[1:], intra_labels
         ):
-            in_group = dmask & _relative_change_mask(
-                income_change, baseline_net_income, lower, upper
+            bucket = _relative_change_mask(
+                person_income_change,
+                person_baseline_net_income,
+                lower,
+                upper,
             )
-            proportion = (
-                float(people_per_hh[in_group].sum() / d_total_people)
-                if d_total_people > 0
-                else 0.0
-            )
-            intra_decile_deciles[label].append(proportion)
+            intra_decile_deciles[label].append(_mean_or_zero(bucket[dmask]))
 
-    intra_decile_all = {
-        label: sum(intra_decile_deciles[label]) / 10 for label in intra_labels
-    }
+    intra_decile_all = {}
+    for lower, upper, label in zip(
+        intra_bounds[:-1], intra_bounds[1:], intra_labels
+    ):
+        bucket = _relative_change_mask(
+            person_income_change,
+            person_baseline_net_income,
+            lower,
+            upper,
+        )
+        intra_decile_all[label] = _mean_or_zero(bucket)
 
     # ===== POVERTY IMPACT =====
     print("  Calculating poverty impact...")

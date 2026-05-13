@@ -139,7 +139,7 @@ def calculate_aggregate_impact(year: int = 2026) -> dict:
     )
     income_change = reform_net_income - baseline_net_income
 
-    # Total households: (x * 0 + 1).sum() = sum(weights)
+    # Total households via MicroSeries aggregation.
     total_households = float((income_change * 0 + 1).sum())
 
     # ===== WINNERS / LOSERS =====
@@ -175,31 +175,43 @@ def calculate_aggregate_impact(year: int = 2026) -> dict:
             decile_average[str(d)] = 0.0
             decile_relative[str(d)] = 0.0
 
-    # Intra-decile shares are person-weighted via household_count_people.
-    people_per_hh = _calc(
-        sim_baseline, "household_count_people", year, map_to="household"
+    person_baseline_net_income = _calc(
+        sim_baseline, "household_net_income", year, map_to="person"
     )
+    person_reform_net_income = _calc(
+        sim_reform, "household_net_income", year, map_to="person"
+    )
+    person_income_change = person_reform_net_income - person_baseline_net_income
+    person_decile = _calc(
+        sim_baseline, "household_income_decile", year, map_to="person"
+    )
+
     intra_decile_deciles = {label: [] for label in _INTRA_LABELS}
     for d in range(1, 11):
-        dmask = decile == d
-        d_total_people = float(people_per_hh[dmask].sum())
+        dmask = person_decile == d
 
         for lower, upper, label in zip(
             _INTRA_BOUNDS[:-1], _INTRA_BOUNDS[1:], _INTRA_LABELS
         ):
-            in_group = dmask & _relative_change_mask(
-                income_change, baseline_net_income, lower, upper
+            bucket = _relative_change_mask(
+                person_income_change,
+                person_baseline_net_income,
+                lower,
+                upper,
             )
-            proportion = (
-                float(people_per_hh[in_group].sum() / d_total_people)
-                if d_total_people > 0
-                else 0.0
-            )
-            intra_decile_deciles[label].append(proportion)
+            intra_decile_deciles[label].append(_mean_or_zero(bucket[dmask]))
 
-    intra_decile_all = {
-        label: sum(intra_decile_deciles[label]) / 10 for label in _INTRA_LABELS
-    }
+    intra_decile_all = {}
+    for lower, upper, label in zip(
+        _INTRA_BOUNDS[:-1], _INTRA_BOUNDS[1:], _INTRA_LABELS
+    ):
+        bucket = _relative_change_mask(
+            person_income_change,
+            person_baseline_net_income,
+            lower,
+            upper,
+        )
+        intra_decile_all[label] = _mean_or_zero(bucket)
 
     # ===== POVERTY IMPACT =====
     pov_bl = _calc(sim_baseline, "person_in_poverty", year, map_to="person")
