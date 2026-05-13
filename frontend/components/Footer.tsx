@@ -164,7 +164,7 @@ export default function Footer() {
                 >
                   policyengine
                 </a>
-                {' '}v4.3.1
+                {' '}v4.4.4
               </p>
             </div>
           </div>
