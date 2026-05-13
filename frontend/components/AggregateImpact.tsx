@@ -527,6 +527,16 @@ export default function AggregateImpact({ triggered }: Props) {
 
       <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
         These estimates are static: they do not capture behavioral responses such as changes in labor supply, tax avoidance, or migration.
+        {' '}Calculations use{' '}
+        <a
+          href="https://github.com/PolicyEngine/policyengine.py"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-primary-600 hover:underline"
+        >
+          policyengine
+        </a>
+        {' '}v4.4.4.
       </p>
     </div>
   );
