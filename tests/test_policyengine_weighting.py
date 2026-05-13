@@ -18,6 +18,7 @@ def test_policyengine_microsim_code_uses_microseries_aggregation() -> None:
         "person" + "_weight",
         "tax_unit" + "_weight",
         "spm_unit" + "_weight",
+        "household_count_" + "people",
     ]
 
     offenders: list[str] = []
@@ -51,8 +52,8 @@ def test_tiny_microsim_smoke_path_uses_pe_us(monkeypatch) -> None:
 
     class TinyMicrosimulation:
         def calc(self, variable: str, **kwargs):
-            assert variable == "household_count_people"
-            assert kwargs == {"period": 2024, "map_to": "household"}
+            assert variable == "household_net_income"
+            assert kwargs == {"period": 2024, "map_to": "person"}
             return MicroSeries([1.0, 3.0], weights=[2.0, 4.0])
 
     def fake_managed_microsimulation(**kwargs):
@@ -72,9 +73,9 @@ def test_tiny_microsim_smoke_path_uses_pe_us(monkeypatch) -> None:
     )
     result = microsimulation._calc(
         sim,
-        "household_count_people",
+        "household_net_income",
         2024,
-        map_to="household",
+        map_to="person",
     )
 
     assert calls == [

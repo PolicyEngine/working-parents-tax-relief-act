@@ -16,7 +16,7 @@ app = modal.App("wptra-district-pipeline")
 
 # Image with policyengine.py and US dependencies
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "policyengine[us]==4.4.3",
+    "policyengine[us]==4.4.4",
     "numpy>=1.24.0",
     "pandas>=2.0.0",
     "huggingface_hub",
