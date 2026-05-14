@@ -189,18 +189,18 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
-        <PolicyEngineShell country="us">
-        <noscript>
+                <noscript>
           <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
             <h1>Working Parents Tax Relief Act Calculator</h1>
             <p>This calculator requires JavaScript to run. Please enable JavaScript in your browser settings to use this tool.</p>
             <p>Visit <a href="https://policyengine.org">PolicyEngine</a> for more information.</p>
           </div>
         </noscript>
-        <Providers>
+        <PolicyEngineShell country="us">
+          <Providers>
           {children}
         </Providers>
-              </PolicyEngineShell>
+        </PolicyEngineShell>
       </body>
     </html>
   );
