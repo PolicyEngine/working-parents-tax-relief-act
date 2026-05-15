@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@policyengine/ui-kit/theme.css";
 
 /* PolicyEngine Design Tokens */
 :root {
