@@ -14,7 +14,6 @@ export default function ShellLayout({
       >
         Skip to main content
       </a>
-      <Header />
       <div id="main-content">
         {children}
       </div>
