@@ -1,6 +1,36 @@
 @import "tailwindcss";
 @import "@policyengine/ui-kit/theme.css";
 
+/* Compatibility aliases: ui-kit 0.12 renamed CSS-variable tokens
+ * to the `--color-*` namespace (Tailwind v4 convention). Calculator
+ * code still uses the un-prefixed `--teal-*` / `--gray-*` names from
+ * the 0.9 era. Map old → new so existing `var(--teal-600)` etc. keep
+ * resolving instead of falling back to nothing — which was rendering
+ * the page with no colors, borders, or backgrounds. */
+:root {
+  --teal-50: var(--color-teal-50);
+  --teal-100: var(--color-teal-100);
+  --teal-200: var(--color-teal-200);
+  --teal-300: var(--color-teal-300);
+  --teal-400: var(--color-teal-400);
+  --teal-500: var(--color-teal-500);
+  --teal-600: var(--color-teal-600);
+  --teal-700: var(--color-teal-700);
+  --teal-800: var(--color-teal-800);
+  --teal-900: var(--color-teal-900);
+
+  --gray-50: var(--color-gray-50);
+  --gray-100: var(--color-gray-100);
+  --gray-200: var(--color-gray-200);
+  --gray-300: var(--color-gray-300);
+  --gray-400: var(--color-gray-400);
+  --gray-500: var(--color-gray-500);
+  --gray-600: var(--color-gray-600);
+  --gray-700: var(--color-gray-700);
+  --gray-800: var(--color-gray-800);
+  --gray-900: var(--color-gray-900);
+}
+
 /* PolicyEngine Design Tokens */
 :root {
   /* Font */
