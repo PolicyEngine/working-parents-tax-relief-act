@@ -186,17 +186,20 @@ describe("calculateHouseholdImpact", () => {
     });
   });
 
-  it("explains a refusal of the page's origin", async () => {
+  it("shows the server's message for a 403 the page can read", async () => {
+    // A refused origin never reaches this: that 403 has no CORS headers, so
+    // the browser reports a network failure. A page can read only a 403 the
+    // dashboard API passes on from the Public API.
     stubFetch(() =>
       jsonResponse(403, {
         status: "error",
-        message: "Pages on this origin may not call the dashboard API.",
+        message: "Forbidden by the Public API.",
         result: null,
       }),
     );
 
     expect(await calculationFailure()).toMatchObject({
-      message: expect.stringMatching(/not allowed/i),
+      message: expect.stringMatching(/HTTP 403.*Forbidden by the Public API\./),
       status: 403,
       retryable: false,
     });
@@ -276,15 +279,16 @@ describe("calculateHouseholdImpact", () => {
 });
 
 describe("shouldRetryHouseholdCalculation", () => {
-  it("retries a retryable failure twice, and nothing else", () => {
+  it("retries a retryable failure once, and nothing else", () => {
+    // Each attempt sends two calculations, against 30 a minute.
     const gatewayFailure = new HouseholdCalculationError("", 503, true);
     const rateLimited = new HouseholdCalculationError("", 429, false);
 
     expect(
-      [0, 1, 2].map((failureCount) =>
+      [0, 1].map((failureCount) =>
         shouldRetryHouseholdCalculation(failureCount, gatewayFailure),
       ),
-    ).toEqual([true, true, false]);
+    ).toEqual([true, false]);
     expect(shouldRetryHouseholdCalculation(0, rateLimited)).toBe(false);
     expect(shouldRetryHouseholdCalculation(0, new Error("other"))).toBe(false);
   });
