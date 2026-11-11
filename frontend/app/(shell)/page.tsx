@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import ImpactAnalysis from '@/components/ImpactAnalysis';
 import AggregateImpact from '@/components/AggregateImpact';
 import PolicyOverview from '@/components/PolicyOverview';
 import CongressionalDistrictImpact from '@/components/CongressionalDistrictImpact';
+import { resetFailedHouseholdImpact } from '@/hooks/useHouseholdImpact';
 import type { HouseholdRequest } from '@/lib/types';
 import { parseHashParams } from '@/lib/embedding';
 
@@ -106,6 +108,7 @@ export default function Home() {
 
 /** Household impact tab */
 function HouseholdImpactTab() {
+  const queryClient = useQueryClient();
   // Initialize state from hash parameters if present
   const getInitialValues = () => {
     if (typeof window === 'undefined') {
@@ -194,7 +197,10 @@ function HouseholdImpactTab() {
   });
 
   const handleCalculate = () => {
-    setSubmittedRequest(buildRequest());
+    const request = buildRequest();
+    // After a failure, the same household would otherwise keep showing it.
+    void resetFailedHouseholdImpact(queryClient, request);
+    setSubmittedRequest(request);
     setTriggered(true);
   };
 

@@ -1,8 +1,9 @@
 /**
- * Build a PolicyEngine household situation for the PE API.
+ * Build a PolicyEngine household situation for a household calculation.
  *
- * Mirrors wptra_calc/household.py but in TypeScript so we can call
- * the PE API directly from the frontend (no backend needed).
+ * Mirrors wptra_calc/household.py but in TypeScript, so the page can send
+ * households to www.policyengine.org's dashboard API without a backend of
+ * its own.
  */
 
 import type { HouseholdRequest } from "./types";
@@ -108,7 +109,8 @@ export function buildHouseholdSituation(
 }
 
 /**
- * Build the Working Parents Tax Relief Act reform policy dict for the PE API.
+ * Build the Working Parents Tax Relief Act reform's parameter changes for a
+ * household calculation.
  */
 export function buildReformPolicy(): Record<string, Record<string, boolean>> {
   return REFORM_POLICY;
