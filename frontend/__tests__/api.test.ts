@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import {
+  api,
+  HouseholdCalculationError,
+  shouldRetryHouseholdCalculation,
+} from "@/lib/api";
 import { buildHouseholdSituation, buildReformPolicy } from "@/lib/household";
 import type { HouseholdRequest } from "@/lib/types";
 
@@ -268,5 +272,20 @@ describe("calculateHouseholdImpact", () => {
       status: null,
       retryable: false,
     });
+  });
+});
+
+describe("shouldRetryHouseholdCalculation", () => {
+  it("retries a retryable failure twice, and nothing else", () => {
+    const gatewayFailure = new HouseholdCalculationError("", 503, true);
+    const rateLimited = new HouseholdCalculationError("", 429, false);
+
+    expect(
+      [0, 1, 2].map((failureCount) =>
+        shouldRetryHouseholdCalculation(failureCount, gatewayFailure),
+      ),
+    ).toEqual([true, true, false]);
+    expect(shouldRetryHouseholdCalculation(0, rateLimited)).toBe(false);
+    expect(shouldRetryHouseholdCalculation(0, new Error("other"))).toBe(false);
   });
 });
