@@ -1,0 +1,272 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { api } from "@/lib/api";
+import { buildHouseholdSituation, buildReformPolicy } from "@/lib/household";
+import type { HouseholdRequest } from "@/lib/types";
+
+const DASHBOARD_API_CALCULATE_URL =
+  "https://www.policyengine.org/api/household/calculate";
+
+const householdRequest: HouseholdRequest = {
+  age_head: 35,
+  age_spouse: null,
+  dependent_ages: [5],
+  income: 75000,
+  year: 2026,
+  max_earnings: 500000,
+  state_code: "CA",
+};
+
+interface RecordedRequest {
+  url: string;
+  method: string | undefined;
+  body: Record<string, unknown>;
+}
+
+type Respond = (
+  body: Record<string, unknown>,
+  init: RequestInit,
+) => Response | Promise<Response>;
+
+/** Replaces the global fetch; returns the requests it receives. */
+function stubFetch(respond: Respond): RecordedRequest[] {
+  const recordedRequests: RecordedRequest[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      recordedRequests.push({ url: String(input), method: init.method, body });
+      return respond(body, init);
+    }),
+  );
+  return recordedRequests;
+}
+
+/** The Public API's calculated household, with values over the income axis. */
+function calculatedHousehold(
+  incomes: number[],
+  netIncomes: number[],
+  federalEitc: number[] = incomes.map(() => 0),
+  stateEitc: number[] = incomes.map(() => 0),
+) {
+  return {
+    people: { you: { employment_income: { "2026": incomes } } },
+    tax_units: {
+      "your tax unit": {
+        eitc: { "2026": federalEitc },
+        state_eitc: { "2026": stateEitc },
+      },
+    },
+    households: {
+      "your household": { household_net_income: { "2026": netIncomes } },
+    },
+  };
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function okAnswer(result: unknown): Response {
+  return jsonResponse(200, { status: "ok", message: null, result });
+}
+
+async function calculationFailure(): Promise<unknown> {
+  try {
+    await api.calculateHouseholdImpact(householdRequest);
+  } catch (error) {
+    return error;
+  }
+  throw new Error("The calculation did not fail.");
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+describe("calculateHouseholdImpact", () => {
+  it("sends the baseline and reform households to the dashboard API", async () => {
+    const recordedRequests = stubFetch(() =>
+      okAnswer(calculatedHousehold([0, 100000], [0, 90000])),
+    );
+
+    await api.calculateHouseholdImpact(householdRequest);
+
+    expect(recordedRequests.map((request) => request.url)).toEqual([
+      DASHBOARD_API_CALCULATE_URL,
+      DASHBOARD_API_CALCULATE_URL,
+    ]);
+    expect(recordedRequests.map((request) => request.method)).toEqual([
+      "POST",
+      "POST",
+    ]);
+    const household = buildHouseholdSituation(householdRequest);
+    expect(recordedRequests.map((request) => request.body)).toEqual([
+      { country: "us", household },
+      { country: "us", household, policy: buildReformPolicy() },
+    ]);
+  });
+
+  it("reads net income from the calculated households as before", async () => {
+    const incomes = [0, 50000, 100000];
+    stubFetch((body) =>
+      okAnswer(
+        body.policy === undefined
+          ? calculatedHousehold(
+              incomes,
+              [10, 40000, 70000],
+              [600, 4000, 0],
+              [100, 300, 0],
+            )
+          : calculatedHousehold(
+              incomes,
+              [110, 40500, 70200],
+              [700, 4400, 200],
+              [150, 500, 100],
+            ),
+      ),
+    );
+
+    const impact = await api.calculateHouseholdImpact(householdRequest);
+
+    expect(impact).toEqual({
+      income_range: incomes,
+      net_income_change: [100, 500, 200],
+      benefit_at_income: {
+        baseline: 55000,
+        reform: 55350,
+        difference: 350,
+        // At 75,000: federal EITC 2,000 before and 2,300 after; state EITC
+        // 150 before and 300 after.
+        federal_eitc_change: 300,
+        state_eitc_change: 150,
+      },
+      x_axis_max: 500000,
+    });
+  });
+
+  it("asks the user to wait after the firewall's rate limit", async () => {
+    stubFetch(
+      () =>
+        new Response("Too Many Requests", {
+          status: 429,
+          headers: { "Content-Type": "text/plain" },
+        }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message: expect.stringMatching(/in the last minute.*wait a minute/i),
+      status: 429,
+      retryable: false,
+    });
+  });
+
+  it("asks the user to wait when no answer could be read", async () => {
+    // A page on another origin cannot read the firewall's 429, which has no
+    // CORS headers: the browser reports a network failure instead.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message: expect.stringMatching(/could not be reached.*wait a minute/i),
+      status: null,
+      retryable: false,
+    });
+  });
+
+  it("explains a refusal of the page's origin", async () => {
+    stubFetch(() =>
+      jsonResponse(403, {
+        status: "error",
+        message: "Pages on this origin may not call the dashboard API.",
+        result: null,
+      }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message: expect.stringMatching(/not allowed/i),
+      status: 403,
+      retryable: false,
+    });
+  });
+
+  it("shows the dashboard API's own message for a refused request", async () => {
+    stubFetch(() =>
+      jsonResponse(400, {
+        status: "error",
+        message: "Unknown fields: households.",
+        result: null,
+      }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message: expect.stringContaining("Unknown fields: households."),
+      status: 400,
+      retryable: false,
+    });
+  });
+
+  it("keeps the status and the Public API's text in a calculation failure", async () => {
+    // ImpactAnalysis shows its "temporarily unavailable" note when the
+    // message contains "500" or "too many values".
+    stubFetch(() =>
+      jsonResponse(500, {
+        status: "error",
+        message: "too many values to unpack",
+        result: null,
+      }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message: expect.stringMatching(/500.*too many values to unpack/),
+    });
+  });
+
+  it("lets a brief gateway failure be retried", async () => {
+    stubFetch(
+      () =>
+        new Response("Service Unavailable", {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message: expect.stringContaining("HTTP 503"),
+      status: 503,
+      retryable: true,
+    });
+  });
+
+  it("gives up after two minutes without an answer", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init: RequestInit = {}) =>
+          new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason),
+            );
+          }),
+      ),
+    );
+
+    const failure = calculationFailure();
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect(await failure).toMatchObject({
+      message: expect.stringMatching(/two minutes/i),
+      status: null,
+      retryable: false,
+    });
+  });
+});
