@@ -12,6 +12,7 @@ import {
   pauseHouseholdCalculations,
   rememberShownHouseholdRequest,
   resetFailedHouseholdImpact,
+  shownHouseholdRecordAfter,
   submitHouseholdRequest,
 } from "@/hooks/useHouseholdImpact";
 import { api, HouseholdCalculationError } from "@/lib/api";
@@ -323,6 +324,30 @@ describe("householdImpactToShow", () => {
     ).toMatchObject({ data: impactAnswer(200), shownRequest: earlierRequest });
   });
 
+  it("shows the household shown last, not the first one shown", () => {
+    // The reader calculated the earlier household, then a later one; the
+    // next household is refused.
+    const laterRequest = { ...householdRequest, income: 60000 };
+    queryClient.setQueryData(
+      ["householdImpact", earlierRequest],
+      impactAnswer(200),
+    );
+    queryClient.setQueryData(
+      ["householdImpact", laterRequest],
+      impactAnswer(300),
+    );
+    rememberShownHouseholdRequest(queryClient, earlierRequest);
+    rememberShownHouseholdRequest(queryClient, laterRequest);
+
+    expect(
+      householdImpactToShow(queryClient, householdRequest, {
+        data: undefined,
+        error: rateLimitRefusal(),
+        isLoading: false,
+      }),
+    ).toMatchObject({ data: impactAnswer(300), shownRequest: laterRequest });
+  });
+
   it("shows other failures in place of the results", () => {
     queryClient.setQueryData(
       ["householdImpact", earlierRequest],
@@ -361,5 +386,39 @@ describe("householdImpactToShow", () => {
         isLoading: false,
       }),
     ).toMatchObject({ data: undefined, error: refusal, rateLimitNotice: null });
+  });
+});
+
+describe("shownHouseholdRecordAfter", () => {
+  it("records a household whose own answer is shown, calculated now or kept", () => {
+    expect(
+      shownHouseholdRecordAfter(householdRequest, {
+        data: impactAnswer(350),
+        error: null,
+      }),
+    ).toEqual({ action: "remember", request: householdRequest });
+  });
+
+  it("forgets the shown household when a failure other than a refusal is shown", () => {
+    // After an error box, a later refusal must not bring back an older
+    // answer that was no longer on screen.
+    expect(
+      shownHouseholdRecordAfter(householdRequest, {
+        data: undefined,
+        error: new HouseholdCalculationError("HTTP 500", 500, false, false),
+      }),
+    ).toEqual({ action: "forget" });
+  });
+
+  it("keeps the record while a household is loading or after a refusal", () => {
+    expect(
+      shownHouseholdRecordAfter(householdRequest, { data: undefined, error: null }),
+    ).toEqual({ action: "keep" });
+    expect(
+      shownHouseholdRecordAfter(householdRequest, {
+        data: undefined,
+        error: rateLimitRefusal(),
+      }),
+    ).toEqual({ action: "keep" });
   });
 });

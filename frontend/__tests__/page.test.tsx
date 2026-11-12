@@ -38,7 +38,9 @@ describe('Household impact tab', () => {
     expect(
       screen.getByRole('button', { name: 'Calculate again in 60 s' }),
     ).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(
+      screen.getByText(/This page can calculate again in 60 s\./),
+    ).toHaveTextContent(
       'Everyone on your network, such as a workshop or an office, shares a ' +
         'limit on calculations a minute. This page can calculate again in 60 s.',
     );
@@ -48,6 +50,29 @@ describe('Household impact tab', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Calculate impact' })).toBeEnabled();
+    expect(screen.queryByText(/This page can calculate again/)).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('announces the explanation once, keeping the countdown out of the live region', () => {
+    vi.useFakeTimers();
+    pauseHouseholdCalculations();
+    renderHouseholdImpactTab();
+    const explanation =
+      'Everyone on your network, such as a workshop or an office, shares a ' +
+      'limit on calculations a minute.';
+
+    expect(screen.getByRole('status').textContent).toBe(explanation);
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    // The countdown moved on, but what screen readers announce did not
+    // change.
+    expect(
+      screen.getByText(/This page can calculate again in 59 s\./),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('status').textContent).toBe(explanation);
   });
 });
