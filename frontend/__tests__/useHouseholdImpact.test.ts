@@ -7,11 +7,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  fetchHouseholdImpact,
-  householdCalculationPauseRemaining,
   householdImpactQueryOptions,
   householdImpactToShow,
   pauseHouseholdCalculations,
+  rememberShownHouseholdRequest,
   resetFailedHouseholdImpact,
   submitHouseholdRequest,
 } from "@/hooks/useHouseholdImpact";
@@ -62,6 +61,7 @@ function rateLimitRefusal(): HouseholdCalculationError {
 
 afterEach(() => {
   queryClient.clear();
+  rememberShownHouseholdRequest(queryClient, null);
   vi.restoreAllMocks();
   // Real time first, so that ending the pause ends it in real time.
   vi.useRealTimers();
@@ -185,35 +185,6 @@ describe("submitHouseholdRequest during a pause", () => {
   });
 });
 
-describe("fetchHouseholdImpact", () => {
-  it("pauses calculations for a minute after a rate-limit refusal", async () => {
-    vi.useFakeTimers();
-    vi.spyOn(api, "calculateHouseholdImpact").mockRejectedValue(
-      rateLimitRefusal(),
-    );
-
-    await expect(fetchHouseholdImpact(householdRequest)).rejects.toMatchObject(
-      { rateLimited: true },
-    );
-
-    expect(householdCalculationPauseRemaining()).toBe(60_000);
-    vi.advanceTimersByTime(60_000);
-    expect(householdCalculationPauseRemaining()).toBe(0);
-  });
-
-  it("does not pause after other failures", async () => {
-    vi.spyOn(api, "calculateHouseholdImpact").mockRejectedValue(
-      new HouseholdCalculationError("HTTP 503", 503, true, false),
-    );
-
-    await expect(fetchHouseholdImpact(householdRequest)).rejects.toMatchObject(
-      { status: 503 },
-    );
-
-    expect(householdCalculationPauseRemaining()).toBe(0);
-  });
-});
-
 describe("householdImpactQueryOptions", () => {
   it("never calculates a refused household again on its own", async () => {
     // A mounted client follows focus and network events, as the page's does.
@@ -264,6 +235,10 @@ describe("householdImpactQueryOptions", () => {
       expect(queryClient.getQueryState(queryKey)?.status).toBe("success"),
     );
 
+    // An hour later, the window regains focus and the page shows the
+    // household again.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 60 * 60 * 1000);
     focusManager.setFocused(false);
     focusManager.setFocused(true);
     const secondObserver = new QueryObserver(
@@ -305,6 +280,7 @@ describe("householdImpactToShow", () => {
       ["householdImpact", earlierRequest],
       impactAnswer(200),
     );
+    rememberShownHouseholdRequest(queryClient, earlierRequest);
     const refusal = rateLimitRefusal();
 
     expect(
@@ -322,18 +298,21 @@ describe("householdImpactToShow", () => {
     });
   });
 
-  it("shows the most recent of several earlier answers", () => {
-    const latestRequest = { ...householdRequest, income: 60000 };
+  it("shows the answer that was on screen, not the one calculated last", () => {
+    // The reader calculated the earlier household, then another, then went
+    // back to the earlier one, which the page showed from the cache.
+    const otherRequest = { ...householdRequest, income: 60000 };
     queryClient.setQueryData(
       ["householdImpact", earlierRequest],
       impactAnswer(200),
       { updatedAt: 1_000 },
     );
     queryClient.setQueryData(
-      ["householdImpact", latestRequest],
+      ["householdImpact", otherRequest],
       impactAnswer(300),
       { updatedAt: 2_000 },
     );
+    rememberShownHouseholdRequest(queryClient, { ...earlierRequest });
 
     expect(
       householdImpactToShow(queryClient, householdRequest, {
@@ -341,7 +320,7 @@ describe("householdImpactToShow", () => {
         error: rateLimitRefusal(),
         isLoading: false,
       }),
-    ).toMatchObject({ data: impactAnswer(300), shownRequest: latestRequest });
+    ).toMatchObject({ data: impactAnswer(200), shownRequest: earlierRequest });
   });
 
   it("shows other failures in place of the results", () => {
@@ -349,6 +328,7 @@ describe("householdImpactToShow", () => {
       ["householdImpact", earlierRequest],
       impactAnswer(200),
     );
+    rememberShownHouseholdRequest(queryClient, earlierRequest);
     const failure = new HouseholdCalculationError("HTTP 500", 500, false, false);
 
     expect(
@@ -366,7 +346,12 @@ describe("householdImpactToShow", () => {
     });
   });
 
-  it("shows the refusal itself when nothing was calculated before", () => {
+  it("shows the refusal itself when nothing was shown before", () => {
+    // An answer in the cache that the page never showed does not count.
+    queryClient.setQueryData(
+      ["householdImpact", earlierRequest],
+      impactAnswer(200),
+    );
     const refusal = rateLimitRefusal();
 
     expect(
