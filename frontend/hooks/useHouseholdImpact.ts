@@ -246,5 +246,12 @@ export function useHouseholdImpact(
       rememberShownHouseholdRequest(queryClient, null);
     }
   }, [queryClient, enabled, request, shownData, shownError]);
+  useEffect(
+    // Removing the results area, as leaving the household tab does, takes
+    // its answer off the screen: when it is shown again it starts empty,
+    // so a refusal then shows the refusal itself.
+    () => () => rememberShownHouseholdRequest(queryClient, null),
+    [queryClient]
+  );
   return householdImpactToShow(queryClient, request, query);
 }
