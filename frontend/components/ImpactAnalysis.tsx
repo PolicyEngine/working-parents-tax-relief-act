@@ -67,7 +67,8 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
 
   const benefitData = data.benefit_at_income;
 
-  const xMax = maxEarnings ?? data.x_axis_max;
+  // The range the shown answer was calculated for.
+  const xMax = shownRequest?.max_earnings ?? maxEarnings ?? data.x_axis_max;
   const chartData = data.income_range
     .map((inc, i) => ({
       income: inc,
@@ -80,7 +81,7 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
       {rateLimitNotice && (
         <div role="status" className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
           <p>{rateLimitNotice}</p>
-          <p className="mt-1 text-sm">The results below are for the last household calculated.</p>
+          <p className="mt-1 text-sm">The results below are for the household shown before.</p>
         </div>
       )}
       <h2 className="text-2xl font-bold text-primary">Impact analysis</h2>
