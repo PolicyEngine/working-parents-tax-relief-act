@@ -22,7 +22,8 @@ interface Props {
 }
 
 export default function ImpactAnalysis({ request, triggered, maxEarnings }: Props) {
-  const { data, isLoading, error } = useHouseholdImpact(request, triggered);
+  const { data, isLoading, error, shownRequest, rateLimitNotice } =
+    useHouseholdImpact(request, triggered);
 
   if (!triggered) return null;
 
@@ -66,7 +67,8 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
 
   const benefitData = data.benefit_at_income;
 
-  const xMax = maxEarnings ?? data.x_axis_max;
+  // The range the shown answer was calculated for.
+  const xMax = shownRequest?.max_earnings ?? maxEarnings ?? data.x_axis_max;
   const chartData = data.income_range
     .map((inc, i) => ({
       income: inc,
@@ -76,13 +78,19 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
 
   return (
     <div className="space-y-8">
+      {rateLimitNotice && (
+        <div role="status" className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
+          <p>{rateLimitNotice}</p>
+          <p className="mt-1 text-sm">The results below are for the household shown before.</p>
+        </div>
+      )}
       <h2 className="text-2xl font-bold text-primary">Impact analysis</h2>
 
       {/* Personal impact */}
       <div>
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Your personal impact ({request?.year ?? 2026})</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Your personal impact ({shownRequest?.year ?? 2026})</h3>
         <p className="text-gray-600 mb-4">
-          Based on your employment income of <strong>{formatCurrency(request?.income ?? 0)}</strong>
+          Based on your employment income of <strong>{formatCurrency(shownRequest?.income ?? 0)}</strong>
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -148,7 +156,7 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
                 : 'bg-gray-50 border-gray-300'
             }`}
           >
-            <p className="text-sm text-gray-700 mb-2">{request?.state_code} EITC change</p>
+            <p className="text-sm text-gray-700 mb-2">{shownRequest?.state_code} EITC change</p>
             <p
               className={`text-3xl font-bold ${
                 benefitData.state_eitc_change > 0
@@ -171,7 +179,7 @@ export default function ImpactAnalysis({ request, triggered, maxEarnings }: Prop
       {/* Chart */}
       <div className="bg-white border rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">
-          Change in net income by employment income ({request?.year ?? 2026})
+          Change in net income by employment income ({shownRequest?.year ?? 2026})
         </h3>
         <ResponsiveContainer width="100%" height={400}>
             <LineChart data={chartData} margin={{ left: 20, right: 20, top: 5, bottom: 5 }}>
