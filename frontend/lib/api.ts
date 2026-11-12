@@ -184,9 +184,11 @@ async function calculateHousehold(
   policy?: Record<string, unknown>
 ): Promise<CalculatedHousehold> {
   if (householdCalculationPauseRemaining() > 0) {
-    // Held back during the pause after a refusal, so never sent.
+    // Held back during the pause after a refusal, so never sent. The pause
+    // may have started from a request with no answer, which only may have
+    // met the limit.
     throw new HouseholdCalculationError(
-      RATE_LIMIT_REFUSAL_MESSAGE,
+      `${SHARED_LIMIT_EXPLANATION}, which may have been reached.`,
       null,
       false,
       true,

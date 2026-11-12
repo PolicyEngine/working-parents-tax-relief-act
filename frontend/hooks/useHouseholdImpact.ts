@@ -195,6 +195,35 @@ export function householdImpactToShow(
   };
 }
 
+/** How a render of the results area changes the record of the shown household. */
+export type ShownHouseholdRecordChange =
+  | { action: "remember"; request: HouseholdRequest }
+  | { action: "forget" }
+  | { action: "keep" };
+
+/**
+ * A household whose own answer is shown, calculated now or kept, is
+ * recorded. A failure other than a refusal forgets the record, so a later
+ * refusal does not bring back an older answer that was no longer on
+ * screen. Loading, and a refusal (which shows the recorded answer), leave
+ * the record as it is.
+ */
+export function shownHouseholdRecordAfter(
+  request: HouseholdRequest | null,
+  current: { data: HouseholdImpactResponse | undefined; error: Error | null }
+): ShownHouseholdRecordChange {
+  if (current.data !== undefined && request !== null) {
+    return { action: "remember", request };
+  }
+  if (
+    current.error !== null &&
+    !(current.error instanceof HouseholdCalculationError && current.error.rateLimited)
+  ) {
+    return { action: "forget" };
+  }
+  return { action: "keep" };
+}
+
 export function useHouseholdImpact(
   request: HouseholdRequest | null,
   enabled: boolean
@@ -202,11 +231,20 @@ export function useHouseholdImpact(
   const queryClient = useQueryClient();
   const query = useQuery(householdImpactQueryOptions(request, enabled));
   const shownData = query.data;
+  const shownError = query.error;
   useEffect(() => {
-    // The page now shows this household's own answer.
-    if (shownData !== undefined && request !== null) {
-      rememberShownHouseholdRequest(queryClient, request);
+    if (!enabled) {
+      return;
     }
-  }, [queryClient, request, shownData]);
+    const change = shownHouseholdRecordAfter(request, {
+      data: shownData,
+      error: shownError,
+    });
+    if (change.action === "remember") {
+      rememberShownHouseholdRequest(queryClient, change.request);
+    } else if (change.action === "forget") {
+      rememberShownHouseholdRequest(queryClient, null);
+    }
+  }, [queryClient, enabled, request, shownData, shownError]);
   return householdImpactToShow(queryClient, request, query);
 }
