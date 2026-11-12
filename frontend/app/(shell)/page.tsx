@@ -6,7 +6,10 @@ import ImpactAnalysis from '@/components/ImpactAnalysis';
 import AggregateImpact from '@/components/AggregateImpact';
 import PolicyOverview from '@/components/PolicyOverview';
 import CongressionalDistrictImpact from '@/components/CongressionalDistrictImpact';
-import { resetFailedHouseholdImpact } from '@/hooks/useHouseholdImpact';
+import {
+  submitHouseholdRequest,
+  useHouseholdCalculationPause,
+} from '@/hooks/useHouseholdImpact';
 import type { HouseholdRequest } from '@/lib/types';
 import { parseHashParams } from '@/lib/embedding';
 
@@ -136,6 +139,10 @@ function HouseholdImpactTab() {
   const [maxEarnings, setMaxEarnings] = useState(100000);
   const [triggered, setTriggered] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<HouseholdRequest | null>(null);
+  // After a refusal for the firewall's limit, the page calculates nothing
+  // for a minute: everyone on the network shares the limit.
+  const calculationPauseSeconds = useHouseholdCalculationPause();
+  const calculationsPaused = calculationPauseSeconds > 0;
 
   // Listen for hash changes to update form values
   useEffect(() => {
@@ -197,11 +204,10 @@ function HouseholdImpactTab() {
   });
 
   const handleCalculate = () => {
-    const request = buildRequest();
-    // After a failure, the same household would otherwise keep showing it.
-    void resetFailedHouseholdImpact(queryClient, request);
-    setSubmittedRequest(request);
-    setTriggered(true);
+    // A failed calculation of the same household runs again.
+    if (submitHouseholdRequest(queryClient, buildRequest(), setSubmittedRequest)) {
+      setTriggered(true);
+    }
   };
 
   return (
@@ -341,9 +347,12 @@ function HouseholdImpactTab() {
         <div className="mt-8">
           <button
             onClick={handleCalculate}
-            className="py-3 px-10 rounded-lg font-semibold text-white bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all shadow-sm hover:shadow-md sm:w-auto w-full"
+            disabled={calculationsPaused}
+            className="py-3 px-10 rounded-lg font-semibold text-white bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all shadow-sm hover:shadow-md sm:w-auto w-full disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Calculate impact
+            {calculationsPaused
+              ? `Calculate again in ${calculationPauseSeconds} s`
+              : 'Calculate impact'}
           </button>
         </div>
       </section>
